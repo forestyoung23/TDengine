@@ -5576,6 +5576,7 @@ static int32_t tableCountScanOptimize(SOptimizeContext* pCxt, SLogicSubplan* pLo
 }
 
 static SSortLogicNode* sortNonPriKeySatisfied(SLogicNode* pNode) {
+  return NULL;
   if (QUERY_NODE_LOGIC_PLAN_SORT != nodeType(pNode)) {
     return NULL;
   }

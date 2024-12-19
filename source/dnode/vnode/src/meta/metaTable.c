@@ -336,7 +336,7 @@ int metaCreateSTable(SMeta *pMeta, int64_t version, SVCreateStbReq *pReq) {
     TABLE_SET_COL_COMPRESSED(me.flags);
     me.colCmpr = pReq->colCmpr;
   }
-  me.pExtSchema = pReq->pExtSchema;
+  me.pExtSchemas = pReq->pExtSchemas;
 
   code = metaHandleEntry(pMeta, &me);
   if (code) goto _err;
@@ -1165,6 +1165,7 @@ int metaCreateTable(SMeta *pMeta, int64_t ver, SVCreateTbReq *pReq, STableMetaRs
     me.ntbEntry.ncid = me.ntbEntry.schemaRow.pSchema[me.ntbEntry.schemaRow.nCols - 1].colId + 1;
     me.colCmpr = pReq->colCmpr;
     TABLE_SET_COL_COMPRESSED(me.flags);
+    me.pExtSchemas = pReq->pExtSchemas;
 
     ++pStats->numOfNTables;
     pStats->numOfNTimeSeries += me.ntbEntry.schemaRow.nCols - 1;
@@ -1201,6 +1202,8 @@ int metaCreateTable(SMeta *pMeta, int64_t ver, SVCreateTbReq *pReq, STableMetaRs
           SColCmpr *p = &pReq->colCmpr.pColCmpr[i];
           (*pMetaRsp)->pSchemaExt[i].colId = p->id;
           (*pMetaRsp)->pSchemaExt[i].compress = p->alg;
+          if (me.pExtSchemas)
+            (*pMetaRsp)->pSchemaExt[i].typeMod = me.pExtSchemas[i].typeMod;
         }
       }
     }
@@ -1992,6 +1995,9 @@ static int metaAlterTableColumn(SMeta *pMeta, int64_t version, SVAlterTbReq *pAl
     SColCmpr *p = &entry.colCmpr.pColCmpr[i];
     pMetaRsp->pSchemaExt[i].colId = p->id;
     pMetaRsp->pSchemaExt[i].compress = p->alg;
+    // TODO wjm
+    // if (entry.pExtSchemas)
+    //   pMetaRsp->pSchemaExt[i].typeMod = entry.pExtSchemas[i].typeMod;
   }
 
   if (entry.pBuf) taosMemoryFree(entry.pBuf);
@@ -3424,7 +3430,7 @@ int32_t metaGetColCmpr(SMeta *pMeta, tb_uid_t uid, SHashObj **ppColCmprObj) {
     taosHashClear(pColCmprObj);
     return rc;
   }
-  if (useCompress(e.type)) {
+  if (withExtSchema(e.type)) {
     SColCmprWrapper *p = &e.colCmpr;
     for (int32_t i = 0; i < p->nCols; i++) {
       SColCmpr *pCmpr = &p->pColCmpr[i];
