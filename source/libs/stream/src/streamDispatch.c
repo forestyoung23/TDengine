@@ -1853,6 +1853,9 @@ int32_t streamProcessDispatchMsg(SStreamTask* pTask, SStreamDispatchReq* pReq, S
     return TSDB_CODE_STREAM_TASK_NOT_EXIST;
   }
 
+  stDebug("s-task:%s lastMsgId:%"PRId64 " for upstream taskId:0x%x(vgId:%d)", id, pInfo->lastMsgId, pReq->upstreamTaskId,
+          pReq->upstreamNodeId);
+
   if (pMeta->role == NODE_ROLE_FOLLOWER) {
     stError("s-task:%s task on follower received dispatch msgs, dispatch msg rejected", id);
     status = TASK_INPUT_STATUS__REFUSED;
