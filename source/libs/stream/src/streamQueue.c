@@ -278,12 +278,13 @@ EExtractDataCode streamTaskGetDataFromInputQ(SStreamTask* pTask, SStreamQueueIte
 
 int32_t streamTaskPutDataIntoInputQ(SStreamTask* pTask, SStreamQueueItem* pItem) {
   int8_t      type = pItem->type;
+  int32_t     level = pTask->info.taskLevel;
   STaosQueue* pQueue = pTask->inputq.queue->pQueue;
   int32_t     total = streamQueueGetNumOfItems(pTask->inputq.queue) + 1;
 
   if (type == STREAM_INPUT__DATA_SUBMIT) {
     SStreamDataSubmit* px = (SStreamDataSubmit*)pItem;
-    if ((pTask->info.taskLevel == TASK_LEVEL__SOURCE) && streamQueueIsFull(pTask->inputq.queue)) {
+    if ((level == TASK_LEVEL__SOURCE) && streamQueueIsFull(pTask->inputq.queue)) {
       double size = SIZE_IN_MiB(taosQueueMemorySize(pQueue));
       stTrace(
           "s-task:%s inputQ is full, capacity(size:%d num:%dMiB), current(blocks:%d, size:%.2fMiB) stop to push data",
@@ -324,8 +325,8 @@ int32_t streamTaskPutDataIntoInputQ(SStreamTask* pTask, SStreamQueueItem* pItem)
 
     double size = SIZE_IN_MiB(taosQueueMemorySize(pQueue));
     stDebug("s-task:%s blockdata enqueue, total in queue:%d, size:%.2fMiB", pTask->id.idStr, total, size);
-  } else if (type == STREAM_INPUT__CHECKPOINT || type == STREAM_INPUT__CHECKPOINT_TRIGGER ||
-             type == STREAM_INPUT__TRANS_STATE || type == STREAM_INPUT__DATA_RETRIEVE) {
+  } else if (type == STREAM_INPUT__CHECKPOINT || type == STREAM_INPUT__TRANS_STATE ||
+             type == STREAM_INPUT__DATA_RETRIEVE) {
     int32_t code = taosWriteQitem(pQueue, pItem);
     if (code != TSDB_CODE_SUCCESS) {
       streamFreeQitem(pItem);
@@ -334,6 +335,24 @@ int32_t streamTaskPutDataIntoInputQ(SStreamTask* pTask, SStreamQueueItem* pItem)
 
     double size = SIZE_IN_MiB(taosQueueMemorySize(pQueue));
     stDebug("s-task:%s level:%d %s blockdata enqueue, total in queue:%d, size:%.2fMiB", pTask->id.idStr,
+            pTask->info.taskLevel, streamQueueItemGetTypeStr(type), total, size);
+  } else if (type == STREAM_INPUT__CHECKPOINT_TRIGGER) {
+    int32_t code = 0;
+
+    // put into front for soure task, to avoid wait for too long in checkpoint procedure
+    if (level == TASK_LEVEL__SOURCE) {
+      code = taosWriteQitemFront(pQueue, pItem);
+    } else {
+      code = taosWriteQitem(pQueue, pItem);
+    }
+
+    if (code != TSDB_CODE_SUCCESS) {
+      streamFreeQitem(pItem);
+      return code;
+    }
+
+    double size = SIZE_IN_MiB(taosQueueMemorySize(pQueue));
+    stDebug("s-task:%s level:%d %s checkpoint-trigger enqueue, total in queue:%d, size:%.2fMiB", pTask->id.idStr,
             pTask->info.taskLevel, streamQueueItemGetTypeStr(type), total, size);
   } else if (type == STREAM_INPUT__GET_RES) {
     // use the default memory limit, refactor later.

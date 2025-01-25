@@ -205,7 +205,7 @@ void taosFreeQitem(void *pItem) {
   taosMemoryFree(pNode);
 }
 
-int32_t taosWriteQitem(STaosQueue *queue, void *pItem) {
+int32_t taosWriteQItemImpl(STaosQueue *queue, void* pItem, bool isTail) {
   int32_t     code = 0;
   STaosQnode *pNode = (STaosQnode *)(((char *)pItem) - sizeof(STaosQnode));
   pNode->timestamp = taosGetTimestampUs();
@@ -227,13 +227,19 @@ int32_t taosWriteQitem(STaosQueue *queue, void *pItem) {
     return code;
   }
 
-  if (queue->tail) {
-    queue->tail->next = pNode;
-    queue->tail = pNode;
-  } else {
+  if (queue->tail == NULL) {
     queue->head = pNode;
     queue->tail = pNode;
+  } else {
+    if (isTail) {
+      queue->tail->next = pNode;
+      queue->tail = pNode;
+    } else {
+      pNode->next = queue->head;
+      queue->head = pNode;
+    }
   }
+
   queue->numOfItems++;
   queue->memOfItems += (pNode->size + pNode->dataSize);
   if (queue->qset) {
@@ -249,8 +255,12 @@ int32_t taosWriteQitem(STaosQueue *queue, void *pItem) {
       uError("failed to post semaphore for queue set:%p", queue->qset);
     }
   }
+
   return code;
 }
+
+int32_t taosWriteQitem(STaosQueue *queue, void *pItem) { return taosWriteQItemImpl(queue, pItem, true); }
+int32_t taosWriteQitemFront(STaosQueue *queue, void *pItem) { return taosWriteQItemImpl(queue, pItem, false); }
 
 void taosReadQitem(STaosQueue *queue, void **ppItem) {
   STaosQnode *pNode = NULL;
