@@ -340,12 +340,7 @@ int32_t streamTaskPutDataIntoInputQ(SStreamTask* pTask, SStreamQueueItem* pItem)
     int32_t code = 0;
 
     // put into front for soure task, to avoid wait for too long in checkpoint procedure
-    if (level == TASK_LEVEL__SOURCE) {
-      code = taosWriteQitemFront(pQueue, pItem);
-    } else {
-      code = taosWriteQitem(pQueue, pItem);
-    }
-
+    code = taosWriteQitem(pQueue, pItem);
     if (code != TSDB_CODE_SUCCESS) {
       streamFreeQitem(pItem);
       return code;
