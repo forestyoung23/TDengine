@@ -543,6 +543,5 @@ void vmStopWorker(SVnodeMgmt *pMgmt) {
   tAutoQWorkerCleanup(&pMgmt->streamPool);
   tWWorkerCleanup(&pMgmt->streamCtrlPool);
   tWWorkerCleanup(&pMgmt->fetchPool);
-  tWWorkerCleanup(&pMgmt->streamCtrlPool);
   dDebug("vnode workers are closed");
 }
