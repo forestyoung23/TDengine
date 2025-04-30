@@ -468,6 +468,7 @@ int32_t buildSubmitReqFromBlock(SDataInserterHandle* pInserter, SSubmitReq2** pp
     goto _end;
   }
 
+  pInserter->isStbInserter = false;
   if (pInserter->isStbInserter) {
     if (!pTagVals && !(pTagVals = taosArrayInit(colNum, sizeof(STagVal)))) {
       taosArrayDestroy(tbData.aRowP);
@@ -477,6 +478,65 @@ int32_t buildSubmitReqFromBlock(SDataInserterHandle* pInserter, SSubmitReq2** pp
 
   int64_t lastTs = TSKEY_MIN;
   bool    needSortMerge = false;
+
+  // build a common table
+  if (1) {
+    tbData.suid = 0;
+    tbData.uid = 0;
+
+    tbData.pCreateTbReq = taosMemoryCalloc(1, sizeof(SVCreateTbReq));
+    if (NULL == tbData.pCreateTbReq) {
+      goto _end;
+    }
+    tbData.flags |= SUBMIT_REQ_AUTO_CREATE_TABLE;
+
+    tbData.pCreateTbReq->type = TSDB_NORMAL_TABLE;
+    tbData.pCreateTbReq->uid = 0;
+
+    // 获取子表vgId
+    SDBVgInfo* dbInfo = NULL;
+    int32_t    code = inserterGetDbVgInfo(pInserter, pInserter->dbFName, &dbInfo);
+    if (code != TSDB_CODE_SUCCESS) {
+      goto _end;
+    }
+
+    char    tbFullName[TSDB_TABLE_FNAME_LEN];
+
+    int32_t len = strlen(pInserter->pNode->tableName);
+    static char tmp = '0';
+    pInserter->pNode->tableName[len] = tmp;
+    pInserter->pNode->tableName[len + 1] = '\0';
+    tmp++;
+
+    snprintf(tbFullName, TSDB_TABLE_FNAME_LEN, "%s.%s", pInserter->dbFName, pInserter->pNode->tableName);
+
+    tbData.pCreateTbReq->name = taosStrdup(pInserter->pNode->tableName);
+    if (!tbData.pCreateTbReq->name) return terrno;
+
+    code = inserterGetVgId(dbInfo, tbFullName, vgId);
+    if (code != TSDB_CODE_SUCCESS) {
+      terrno = code;
+      goto _end;
+    }
+
+    tbData.pCreateTbReq->ntb.schemaRow.nCols = pTSchema->numOfCols;
+    tbData.pCreateTbReq->ntb.schemaRow.version = pTSchema->version;
+
+    tbData.pCreateTbReq->ntb.schemaRow.pSchema = taosMemoryCalloc(pTSchema->numOfCols, sizeof(SSchema));
+    if (NULL == tbData.pCreateTbReq->ntb.schemaRow.pSchema) {
+      goto _end;
+    }
+    for (int32_t i = 0; i < pTSchema->numOfCols; ++i) {
+      tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].colId = pTSchema->columns[i].colId;
+      tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].type = pTSchema->columns[i].type;
+      tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].bytes = pTSchema->columns[i].bytes;
+      tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].flags = pTSchema->columns[i].flags;
+      if(tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].colId == 1) {
+        tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].flags |= COL_IS_KEY;
+      }
+      snprintf(tbData.pCreateTbReq->ntb.schemaRow.pSchema[i].name, TSDB_COL_NAME_LEN, "c%d", i);
+    }
+  }
 
   for (int32_t j = 0; j < rows; ++j) {  // iterate by row
     taosArrayClear(pVals);
