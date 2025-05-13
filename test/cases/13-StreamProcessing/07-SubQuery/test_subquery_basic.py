@@ -106,18 +106,24 @@ class TestStreamSubqueryBasic:
     def create_stream(self):
         self.streams = [
             TestStreamSubqueryBaiscItem(
-                index=0,
                 trigger="interval(5m)",
                 sub_query="select _wstart, max(current) from qdb.meters",
                 res_query="select count(current) from qdb.meters interval(5m)",
                 exp_query="select count(current) from qdb.meters where ts >= 1704038400000 and ts < 1704038700000",
                 exp_rows=(0 for _ in range(12)),
-            )
+            ),
+            TestStreamSubqueryBaiscItem(
+                trigger="interval(5m) sliding(5m)",
+                sub_query="select _wstart, max(current) from qdb.meters",
+                res_query="select count(current) from qdb.meters interval(5m) sliding(5m)",
+                exp_query="select count(current) from qdb.meters where ts >= 1704038400000 and ts < 1704038700000",
+                exp_rows=(0 for _ in range(12)),
+            ),
         ]
 
         tdLog.info(f"create total:{len(self.streams)} streams")
-        for stream in self.streams:
-            stream.create_stream()
+        for index, stream in enumerate(self.streams):
+            stream.create_stream(index)
 
     def wait_stream_run_finish(self):
         tdLog.info(f"wait total:{len(self.streams)} streams run finish")
@@ -127,21 +133,22 @@ class TestStreamSubqueryBasic:
     def check_result(self):
         tdLog.info(f"check total:{len(self.streams)} streams result")
         for stream in self.streams:
-            stream.check_result()
+            stream.check_result(print=True)
 
 
 class TestStreamSubqueryBaiscItem:
-    def __init__(self, index, trigger, sub_query, res_query, exp_query, exp_rows=[]):
-        self.index = index
-        self.name = f"s{index}"
+    def __init__(self, trigger, sub_query, res_query, exp_query, exp_rows=[]):
         self.trigger = trigger
         self.sub_query = sub_query
         self.res_query = res_query
         self.exp_query = exp_query
         self.exp_rows = exp_rows
+
+    def create_stream(self, index):
+        self.index = index
+        self.name = f"s{index}"
         self.exp_result = []
 
-    def create_stream(self):
         sql = f"create stream s{self.index} {self.trigger} from qdb.meters into rdb.rs{self.index} as {self.sub_query}"
         tdLog.info(f"create stream:{self.name}, sql:{sql}")
 
