@@ -458,6 +458,16 @@
 ,y,.,./ci/pytest.sh pytest cases/12-DataSubscription/test_tmq_topic.py
 
 # 13-StreamProcessing
+## 01-Snode
+## 02-Stream
+## 03-Trigger
+## 04-Option
+## 05-Notify
+## 06-Output
+## 07-SubQuery
+,y,.,./ci/pytest.sh pytest cases/13-StreamProcessing/07-SubQuery/test_subquery_basic.py
+## 20-UseCase
+## 99-Others
 
 # 14-Operators
 
