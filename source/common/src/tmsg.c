@@ -1601,6 +1601,7 @@ int32_t tSerializeSCreateUserReq(void *buf, int32_t bufLen, SCreateUserReq *pReq
   if (tEncodeI8(&encoder, pReq->superUser) < 0) return -1;
   if (tEncodeI8(&encoder, pReq->sysInfo) < 0) return -1;
   if (tEncodeI8(&encoder, pReq->enable) < 0) return -1;
+  if (tEncodeI8(&encoder, pReq->readLevel) < 0) return -1; // compatibility not considered
   if (tEncodeCStr(&encoder, pReq->user) < 0) return -1;
   if (tEncodeCStr(&encoder, pReq->pass) < 0) return -1;
   if (tEncodeI32(&encoder, pReq->numIpRanges) < 0) return -1;
@@ -1626,6 +1627,7 @@ int32_t tDeserializeSCreateUserReq(void *buf, int32_t bufLen, SCreateUserReq *pR
   if (tDecodeI8(&decoder, &pReq->superUser) < 0) return -1;
   if (tDecodeI8(&decoder, &pReq->sysInfo) < 0) return -1;
   if (tDecodeI8(&decoder, &pReq->enable) < 0) return -1;
+  if (tDecodeI8(&decoder, &pReq->readLevel) < 0) return -1; // compatibility not considered
   if (tDecodeCStrTo(&decoder, pReq->user) < 0) return -1;
   if (tDecodeCStrTo(&decoder, pReq->pass) < 0) return -1;
   if (tDecodeI32(&decoder, &pReq->numIpRanges) < 0) return -1;

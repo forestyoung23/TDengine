@@ -78,7 +78,7 @@ typedef enum ETableOptionType {
   TABLE_OPTION_ROLLUP,
   TABLE_OPTION_TTL,
   TABLE_OPTION_SMA,
-  TABLE_OPTION_DELETE_MARK
+  TABLE_OPTION_DELETE_MARK,
 } ETableOptionType;
 
 typedef enum EColumnOptionType {
@@ -87,6 +87,9 @@ typedef enum EColumnOptionType {
   COLUMN_OPTION_COMPRESS,
   COLUMN_OPTION_LEVEL,
   COLUMN_OPTION_PRIMARYKEY,
+  COLUMN_OPTION_READ_LEVEL,
+  COLUMN_OPTION_READ_RULE,
+  COLUMN_OPTION_READ_RANGE,
 } EColumnOptionType;
 
 typedef struct SAlterOption {
@@ -226,7 +229,7 @@ SNode* createShowTableDistributedStmt(SAstCreateContext* pCxt, SNode* pRealTable
 SNode* createShowDnodeVariablesStmt(SAstCreateContext* pCxt, SNode* pDnodeId, SNode* pLikePattern);
 SNode* createShowVnodesStmt(SAstCreateContext* pCxt, SNode* pDnodeId, SNode* pDnodeEndpoint);
 SNode* createShowTableTagsStmt(SAstCreateContext* pCxt, SNode* pTbName, SNode* pDbName, SNodeList* pTags);
-SNode* createCreateUserStmt(SAstCreateContext* pCxt, SToken* pUserName, const SToken* pPassword, int8_t sysinfo);
+SNode* createCreateUserStmt(SAstCreateContext* pCxt, SToken* pUserName, const SToken* pPassword, int8_t sysinfo, int8_t readLevel);
 SNode* addCreateUserStmtWhiteList(SAstCreateContext* pCxt, SNode* pStmt, SNodeList* pIpRangesNodeList);
 SNode* createAlterUserStmt(SAstCreateContext* pCxt, SToken* pUserName, int8_t alterType, void* pAlterInfo);
 SNode* createDropUserStmt(SAstCreateContext* pCxt, SToken* pUserName);

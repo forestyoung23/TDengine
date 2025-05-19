@@ -97,8 +97,8 @@ white_list_opt(A) ::= white_list(B).                                            
 
 /************************************************ create/alter/drop user **********************************************/
 cmd ::= CREATE USER user_name(A) PASS NK_STRING(B) sysinfo_opt(C)
-                      white_list_opt(D).                                          {
-                                                                                    pCxt->pRootNode = createCreateUserStmt(pCxt, &A, &B, C);
+                      white_list_opt(D) read_level_opt(E).                        {
+                                                                                    pCxt->pRootNode = createCreateUserStmt(pCxt, &A, &B, C, E);
                                                                                     pCxt->pRootNode = addCreateUserStmtWhiteList(pCxt, pCxt->pRootNode, D);
                                                                                   }
 cmd ::= ALTER USER user_name(A) PASS NK_STRING(B).                                { pCxt->pRootNode = createAlterUserStmt(pCxt, &A, TSDB_ALTER_USER_PASSWD, &B); }
@@ -113,6 +113,10 @@ cmd ::= DROP USER user_name(A).                                                 
 sysinfo_opt(A) ::= .                                                              { A = 1; }
 sysinfo_opt(A) ::= SYSINFO NK_INTEGER(B).                                         { A = taosStr2Int8(B.z, NULL, 10); }
 
+%type read_level_opt                                                              { int8_t }
+%destructor read_level_opt                                                        { }
+read_level_opt(A) ::= .                                                           { A = 0; }
+read_level_opt(A) ::= READ_LEVEL NK_INTEGER(B).                                   { A = taosStr2Int8(B.z, NULL, 10); }
 /************************************************ grant/revoke ********************************************************/
 cmd ::= GRANT privileges(A) ON priv_level(B) with_opt(D) TO user_name(C).         { pCxt->pRootNode = createGrantStmt(pCxt, A, &B, &C, D); }
 cmd ::= REVOKE privileges(A) ON priv_level(B) with_opt(D) FROM user_name(C).      { pCxt->pRootNode = createRevokeStmt(pCxt, A, &B, &C, D); }
@@ -1575,3 +1579,6 @@ column_options(A) ::= column_options(B) PRIMARY KEY.                            
 column_options(A) ::= column_options(B) ENCODE NK_STRING(C).                      { A = setColumnOptions(pCxt, B, COLUMN_OPTION_ENCODE, &C); }
 column_options(A) ::= column_options(B) COMPRESS NK_STRING(C).                    { A = setColumnOptions(pCxt, B, COLUMN_OPTION_COMPRESS, &C); }
 column_options(A) ::= column_options(B) LEVEL NK_STRING(C).                       { A = setColumnOptions(pCxt, B, COLUMN_OPTION_LEVEL, &C); }
+column_options(A) ::= column_options(B) READ_LEVEL NK_INTEGER(C).                 { A = setColumnOptions(pCxt, B, COLUMN_OPTION_READ_LEVEL, &C); }
+column_options(A) ::= column_options(B) READ_RULE  NK_INTEGER(C).                 { A = setColumnOptions(pCxt, B, COLUMN_OPTION_READ_RULE, &C); }
+column_options(A) ::= column_options(B) READ_RANGE NK_STRING(C).                  { A = setColumnOptions(pCxt, B, COLUMN_OPTION_READ_RANGE, &C); }

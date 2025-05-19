@@ -176,13 +176,17 @@ typedef struct STableOptions {
 } STableOptions;
 
 typedef struct SColumnOptions {
-  ENodeType type;
-  bool      commentNull;
-  char      comment[TSDB_CL_COMMENT_LEN];
-  char      encode[TSDB_CL_COMPRESS_OPTION_LEN];
-  char      compress[TSDB_CL_COMPRESS_OPTION_LEN];
-  char      compressLevel[TSDB_CL_COMPRESS_OPTION_LEN];
-  bool      bPrimaryKey;
+  ENodeType  type;
+  bool       commentNull;
+  char       comment[TSDB_CL_COMMENT_LEN];
+  char       encode[TSDB_CL_COMPRESS_OPTION_LEN];
+  char       compress[TSDB_CL_COMPRESS_OPTION_LEN];
+  char       compressLevel[TSDB_CL_COMPRESS_OPTION_LEN];
+  bool       bPrimaryKey;
+  int8_t     readLevel;
+  int8_t     readRule;
+  int32_t    readRange[2];
+  SNodeList* pReadRange;
 } SColumnOptions;
 typedef struct SColumnDefNode {
   ENodeType type;
@@ -258,6 +262,7 @@ typedef struct SCreateUserStmt {
   char        userName[TSDB_USER_LEN];
   char        password[TSDB_USET_PASSWORD_LEN];
   int8_t      sysinfo;
+  int8_t      readLevel;
   int32_t     numIpRanges;
   SIpV4Range* pIpRanges;
 

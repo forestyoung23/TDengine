@@ -7423,6 +7423,42 @@ static int32_t checkTableTagsSchema(STranslateContext* pCxt, SHashObj* pHash, SN
   return code;
 }
 
+static int32_t checkColumnReadRangeOption(STranslateContext* pCxt, SColumnOptions* pOptions) {
+  if (NULL == pOptions->pReadRange) {
+    return TSDB_CODE_SUCCESS;
+  }
+  if (LIST_LENGTH(pOptions->pReadRange) != 2) {
+    return generateSyntaxErrMsgExt(&pCxt->msgBuf, TSDB_CODE_PAR_INVALID_TABLE_OPTION, "Invalid option read_range");
+  }
+
+  SValueNode* pVal = (SValueNode*)nodesListGetNode(pOptions->pReadRange, 0);
+  int32_t     code = (DEAL_RES_ERROR == translateValue(pCxt, pVal) ? pCxt->errCode : TSDB_CODE_SUCCESS);
+
+  if (TSDB_CODE_SUCCESS == code) {
+    code = checkTableRangeOption(pCxt, "read_range", pVal->datum.i, TSDB_MIN_READ_RANGE, TSDB_MAX_READ_RANGE);
+    pOptions->readRange[0] = pVal->datum.i;
+  }
+  if (TSDB_CODE_SUCCESS == code) {
+    pVal = (SValueNode*)nodesListGetNode(pOptions->pReadRange, 1);
+    code = (DEAL_RES_ERROR == translateValue(pCxt, pVal) ? pCxt->errCode : TSDB_CODE_SUCCESS);
+
+    if (TSDB_CODE_SUCCESS == code) {
+      code = checkTableRangeOption(pCxt, "read_range", pVal->datum.i, TSDB_MIN_READ_RANGE, TSDB_MAX_READ_RANGE);
+      pOptions->readRange[1] = pVal->datum.i;
+    }
+
+    if (TSDB_CODE_SUCCESS == code) {
+      if (pOptions->readRange[0] > pOptions->readRange[1]) {
+        code = generateSyntaxErrMsgExt(&pCxt->msgBuf, TSDB_CODE_PAR_INVALID_TABLE_OPTION,
+                                       "Invalid option read_range: %lld > %lld", pOptions->readRange[0],
+                                       pOptions->readRange[1]);
+      }
+    }
+  }
+
+  return code;
+}
+
 static int32_t checkTableColsSchema(STranslateContext* pCxt, SHashObj* pHash, int32_t ntags, SNodeList* pCols,
                                     SNodeList* pRollupFuncs) {
   int32_t ncols = LIST_LENGTH(pCols);
@@ -7450,6 +7486,9 @@ static int32_t checkTableColsSchema(STranslateContext* pCxt, SHashObj* pHash, in
       if (TSDB_DATA_TYPE_TIMESTAMP != pCol->dataType.type) {
         code = generateSyntaxErrMsg(&pCxt->msgBuf, TSDB_CODE_PAR_INVALID_FIRST_COLUMN);
       }
+    }
+    if (TSDB_CODE_SUCCESS == code) {
+      code = checkColumnReadRangeOption(pCxt, (SColumnOptions*)pCol->pOptions);
     }
     if (TSDB_CODE_SUCCESS == code && pCol->pOptions && ((SColumnOptions*)pCol->pOptions)->bPrimaryKey &&
         colIndex != 1) {

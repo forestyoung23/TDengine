@@ -820,6 +820,7 @@ SSdbRaw *mndUserActionEncode(SUserObj *pUser) {
   SDB_SET_INT8(pRaw, dataPos, pUser->superUser, _OVER)
   SDB_SET_INT8(pRaw, dataPos, pUser->sysInfo, _OVER)
   SDB_SET_INT8(pRaw, dataPos, pUser->enable, _OVER)
+  SDB_SET_INT8(pRaw, dataPos, pUser->readLevel, _OVER) // compatibility not considered
   SDB_SET_INT8(pRaw, dataPos, pUser->reserve, _OVER)
   SDB_SET_INT32(pRaw, dataPos, pUser->authVersion, _OVER)
   SDB_SET_INT32(pRaw, dataPos, pUser->passVersion, _OVER)
@@ -1004,6 +1005,7 @@ static SSdbRow *mndUserActionDecode(SSdbRaw *pRaw) {
   SDB_GET_INT8(pRaw, dataPos, &pUser->superUser, _OVER)
   SDB_GET_INT8(pRaw, dataPos, &pUser->sysInfo, _OVER)
   SDB_GET_INT8(pRaw, dataPos, &pUser->enable, _OVER)
+  SDB_GET_INT8(pRaw, dataPos, &pUser->readLevel, _OVER) // compatibility not considered
   SDB_GET_INT8(pRaw, dataPos, &pUser->reserve, _OVER)
   SDB_GET_INT32(pRaw, dataPos, &pUser->authVersion, _OVER)
   if (sver >= 4) {
@@ -1448,6 +1450,7 @@ static int32_t mndCreateUser(SMnode *pMnode, char *acct, SCreateUserReq *pCreate
   userObj.superUser = 0;  // pCreate->superUser;
   userObj.sysInfo = pCreate->sysInfo;
   userObj.enable = pCreate->enable;
+  userObj.readLevel = pCreate->readLevel;
 
   if (pCreate->numIpRanges == 0) {
     userObj.pIpWhiteList = createDefaultIpWhiteList();

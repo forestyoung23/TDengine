@@ -152,6 +152,10 @@ SSdbRaw *mndStbActionEncode(SStbObj *pStb) {
     SDB_SET_INT8(pRaw, dataPos, pSchema->flags, _OVER)
     SDB_SET_INT16(pRaw, dataPos, pSchema->colId, _OVER)
     SDB_SET_INT32(pRaw, dataPos, pSchema->bytes, _OVER)
+    SDB_SET_INT32(pRaw, dataPos, pSchema->readRange[0], _OVER) // compatibility not considered
+    SDB_SET_INT32(pRaw, dataPos, pSchema->readRange[1], _OVER)
+    SDB_SET_INT8(pRaw, dataPos, pSchema->readLevel, _OVER)
+    SDB_SET_INT8(pRaw, dataPos, pSchema->readRule, _OVER)
     SDB_SET_BINARY(pRaw, dataPos, pSchema->name, TSDB_COL_NAME_LEN, _OVER)
   }
 
@@ -161,6 +165,10 @@ SSdbRaw *mndStbActionEncode(SStbObj *pStb) {
     SDB_SET_INT8(pRaw, dataPos, pSchema->flags, _OVER)
     SDB_SET_INT16(pRaw, dataPos, pSchema->colId, _OVER)
     SDB_SET_INT32(pRaw, dataPos, pSchema->bytes, _OVER)
+    SDB_SET_INT32(pRaw, dataPos, pSchema->readRange[0], _OVER) // compatibility not considered
+    SDB_SET_INT32(pRaw, dataPos, pSchema->readRange[1], _OVER)
+    SDB_SET_INT8(pRaw, dataPos, pSchema->readLevel, _OVER)
+    SDB_SET_INT8(pRaw, dataPos, pSchema->readRule, _OVER)
     SDB_SET_BINARY(pRaw, dataPos, pSchema->name, TSDB_COL_NAME_LEN, _OVER)
   }
 
@@ -259,6 +267,10 @@ static SSdbRow *mndStbActionDecode(SSdbRaw *pRaw) {
     SDB_GET_INT8(pRaw, dataPos, &pSchema->flags, _OVER)
     SDB_GET_INT16(pRaw, dataPos, &pSchema->colId, _OVER)
     SDB_GET_INT32(pRaw, dataPos, &pSchema->bytes, _OVER)
+    SDB_GET_INT32(pRaw, dataPos, &pSchema->readRange[0], _OVER) // compatibility not considered
+    SDB_GET_INT32(pRaw, dataPos, &pSchema->readRange[1], _OVER)
+    SDB_GET_INT8(pRaw, dataPos, &pSchema->readLevel, _OVER)
+    SDB_GET_INT8(pRaw, dataPos, &pSchema->readRule, _OVER)
     SDB_GET_BINARY(pRaw, dataPos, pSchema->name, TSDB_COL_NAME_LEN, _OVER)
   }
 
@@ -268,6 +280,10 @@ static SSdbRow *mndStbActionDecode(SSdbRaw *pRaw) {
     SDB_GET_INT8(pRaw, dataPos, &pSchema->flags, _OVER)
     SDB_GET_INT16(pRaw, dataPos, &pSchema->colId, _OVER)
     SDB_GET_INT32(pRaw, dataPos, &pSchema->bytes, _OVER)
+    SDB_GET_INT32(pRaw, dataPos, &pSchema->readRange[0], _OVER) // compatibility not considered
+    SDB_GET_INT32(pRaw, dataPos, &pSchema->readRange[1], _OVER)
+    SDB_GET_INT8(pRaw, dataPos, &pSchema->readLevel, _OVER)
+    SDB_GET_INT8(pRaw, dataPos, &pSchema->readRule, _OVER)
     SDB_GET_BINARY(pRaw, dataPos, pSchema->name, TSDB_COL_NAME_LEN, _OVER)
   }
 

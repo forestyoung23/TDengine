@@ -1754,6 +1754,29 @@ SNode* setColumnOptions(SAstCreateContext* pCxt, SNode* pOptions, EColumnOptionT
     case COLUMN_OPTION_PRIMARYKEY:
       ((SColumnOptions*)pOptions)->bPrimaryKey = true;
       break;
+    case COLUMN_OPTION_READ_LEVEL: {
+      int64_t readLevel = taosStr2Int64(((SToken*)pVal)->z, NULL, 10);
+      if (readLevel > INT8_MAX) {
+        readLevel = INT8_MAX;
+      } else if (readLevel < INT8_MIN) {
+        readLevel = INT8_MIN;
+      }
+      ((SColumnOptions*)pOptions)->readLevel = readLevel;
+      break;
+    }
+    case COLUMN_OPTION_READ_RULE: {
+      int64_t readRule = taosStr2Int64(((SToken*)pVal)->z, NULL, 10);
+      if (readRule > INT8_MAX) {
+        readRule = INT8_MAX;
+      } else if (readRule < INT8_MIN) {
+        readRule = INT8_MIN;
+      }
+      ((SColumnOptions*)pOptions)->readRule = readRule;
+      break;
+    }
+    case COLUMN_OPTION_READ_RANGE:
+      ((SColumnOptions*)pOptions)->pReadRange = pVal;
+      break;
     default:
       break;
   }
@@ -2212,7 +2235,7 @@ SNode* addCreateUserStmtWhiteList(SAstCreateContext* pCxt, SNode* pCreateUserStm
   return pCreateUserStmt;
 }
 
-SNode* createCreateUserStmt(SAstCreateContext* pCxt, SToken* pUserName, const SToken* pPassword, int8_t sysinfo) {
+SNode* createCreateUserStmt(SAstCreateContext* pCxt, SToken* pUserName, const SToken* pPassword, int8_t sysinfo, int8_t readLevel) {
   CHECK_PARSER_STATUS(pCxt);
   char password[TSDB_USET_PASSWORD_LEN + 3] = {0};
   if (!checkUserName(pCxt, pUserName) || !checkPassword(pCxt, pPassword, password)) {
@@ -2223,6 +2246,7 @@ SNode* createCreateUserStmt(SAstCreateContext* pCxt, SToken* pUserName, const ST
   COPY_STRING_FORM_ID_TOKEN(pStmt->userName, pUserName);
   strcpy(pStmt->password, password);
   pStmt->sysinfo = sysinfo;
+  pStmt->readLevel = readLevel;
   return (SNode*)pStmt;
 }
 

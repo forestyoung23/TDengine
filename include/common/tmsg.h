@@ -558,6 +558,9 @@ struct SSchema {
   int8_t   flags;
   col_id_t colId;
   int32_t  bytes;
+  int32_t  readRange[2];
+  int8_t   readLevel;
+  int8_t   readRule;
   char     name[TSDB_COL_NAME_LEN];
 };
 struct SSchemaExt {
@@ -760,6 +763,10 @@ static FORCE_INLINE int32_t tEncodeSSchema(SEncoder* pEncoder, const SSchema* pS
   if (tEncodeI32v(pEncoder, pSchema->bytes) < 0) return -1;
   if (tEncodeI16v(pEncoder, pSchema->colId) < 0) return -1;
   if (tEncodeCStr(pEncoder, pSchema->name) < 0) return -1;
+  if (tEncodeI8(pEncoder, pSchema->readLevel) < 0) return -1;
+  if (tEncodeI8(pEncoder, pSchema->readRule) < 0) return -1;
+  if (tEncodeI32v(pEncoder, pSchema->readRange[0]) < 0) return -1;
+  if (tEncodeI32v(pEncoder, pSchema->readRange[1]) < 0) return -1;
   return 0;
 }
 
@@ -769,6 +776,10 @@ static FORCE_INLINE int32_t tDecodeSSchema(SDecoder* pDecoder, SSchema* pSchema)
   if (tDecodeI32v(pDecoder, &pSchema->bytes) < 0) return -1;
   if (tDecodeI16v(pDecoder, &pSchema->colId) < 0) return -1;
   if (tDecodeCStrTo(pDecoder, pSchema->name) < 0) return -1;
+  if (tDecodeI8(pDecoder, &pSchema->readLevel) < 0) return -1;
+  if (tDecodeI8(pDecoder, &pSchema->readRule) < 0) return -1;
+  if (tDecodeI32v(pDecoder, &pSchema->readRange[0]) < 0) return -1;
+  if (tDecodeI32v(pDecoder, &pSchema->readRange[1]) < 0) return -1;
   return 0;
 }
 
@@ -1009,6 +1020,7 @@ typedef struct {
   int8_t      superUser;  // denote if it is a super user or not
   int8_t      sysInfo;
   int8_t      enable;
+  int8_t      readLevel;
   char        user[TSDB_USER_LEN];
   char        pass[TSDB_USET_PASSWORD_LEN];
   int32_t     numIpRanges;
