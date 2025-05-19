@@ -1774,12 +1774,63 @@ SNode* setColumnOptions(SAstCreateContext* pCxt, SNode* pOptions, EColumnOptionT
       ((SColumnOptions*)pOptions)->readRule = readRule;
       break;
     }
-    case COLUMN_OPTION_READ_RANGE:
-      ((SColumnOptions*)pOptions)->pReadRange = pVal;
-      break;
+    case COLUMN_OPTION_READ_RANGE: {
+      char buf[64] = {0};
+      COPY_STRING_FORM_STR_TOKEN(buf, (SToken*)pVal);
+      if (buf[0] != 0) {
+        bool  isSuccess = false;
+        char* commaSplit = strstr(buf, ",");
+        if (commaSplit) {
+          int32_t lenSplit = commaSplit - buf;
+          for (int32_t i = 0; i < lenSplit; ++i) {
+            if (buf[i] < '0' || buf[i] > '9') {
+              break;
+            }
+            isSuccess = true;
+          }
+          if (isSuccess) {
+            int64_t readRange = taosStr2Int64(buf, NULL, 10);
+            if (readRange < 0 || readRange > INT32_MAX) {
+              pCxt->errCode = TSDB_CODE_OUT_OF_RANGE;
+              goto _exit;
+            }
+            ((SColumnOptions*)pOptions)->readRange[0] = readRange;
+            ++commaSplit;
+            int32_t j = 0;
+            while (commaSplit[j]) {
+              if (commaSplit[j] < '0' || commaSplit[j] > '9') {
+                pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+                goto _exit;
+              }
+              ++j;
+            }
+            if (j > 0) {
+              readRange = taosStr2Int64(commaSplit, NULL, 10);
+              if (readRange < 0 || readRange > INT32_MAX) {
+                pCxt->errCode = TSDB_CODE_OUT_OF_RANGE;
+                goto _exit;
+              }
+              if (readRange < ((SColumnOptions*)pOptions)->readRange[0]) {
+                pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+                goto _exit;
+              }
+              ((SColumnOptions*)pOptions)->readRange[1] = readRange;
+            } else {
+              pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+              goto _exit;
+            }
+
+          } else {
+            pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+            goto _exit;
+          }
+        }
+      }
+    } break;
     default:
       break;
   }
+_exit:
   return pOptions;
 }
 
