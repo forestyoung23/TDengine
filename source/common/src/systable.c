@@ -349,6 +349,18 @@ static const SSysDbTableSchema userUserPrivilegesSchema[] = {
     {.name = "notes", .bytes = 64 + VARSTR_HEADER_SIZE, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = true},
 };
 
+static const SSysDbTableSchema userRedSchema[] = {
+    {.name = "user_name", .bytes = TSDB_USER_LEN + VARSTR_HEADER_SIZE, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = true},
+    {.name = "read_level",.bytes = 4, .type = TSDB_DATA_TYPE_INT, .sysInfo = true},
+};
+
+static const SSysDbTableSchema tableRedSchema[] = {
+    {.name = "table_name", .bytes = SYSTABLE_SCH_TABLE_NAME_LEN, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = true},
+    {.name = "col_name", .bytes = TSDB_COL_NAME_LEN - 1 + VARSTR_HEADER_SIZE, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = true},
+    {.name = "read_level", .bytes = 4, .type = TSDB_DATA_TYPE_INT, .sysInfo = true},
+    {.name = "range", .bytes = 45 + VARSTR_HEADER_SIZE, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = true},
+};
+
 static const SSysDbTableSchema userViewsSchema[] = {
     {.name = "view_name", .bytes = SYSTABLE_SCH_VIEW_NAME_LEN, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = false},
     {.name = "db_name", .bytes = SYSTABLE_SCH_DB_NAME_LEN, .type = TSDB_DATA_TYPE_VARCHAR, .sysInfo = false},
@@ -448,6 +460,8 @@ static const SSysTableMeta infosMeta[] = {
     {TSDB_INS_TABLE_ARBGROUPS, arbGroupsSchema, tListLen(arbGroupsSchema), true},
     {TSDB_INS_TABLE_ENCRYPTIONS, encryptionsSchema, tListLen(encryptionsSchema), true},
     {TSDB_INS_TABLE_TSMAS, tsmaSchema, tListLen(tsmaSchema), false},
+    {TSDB_INS_TABLE_USER_REDS, userRedSchema, tListLen(userRedSchema), true},
+    {TSDB_INS_TABLE_TABLE_REDS, tableRedSchema, tListLen(tableRedSchema), true},
 };
 
 static const SSysDbTableSchema connectionsSchema[] = {

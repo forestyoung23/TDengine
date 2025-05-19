@@ -523,7 +523,10 @@ SNode* nodesMakeNode(ENodeType type) {
     case QUERY_NODE_SHOW_CLUSTER_MACHINES_STMT:
     case QUERY_NODE_SHOW_ENCRYPTIONS_STMT:
     case QUERY_NODE_SHOW_TSMAS_STMT:
+    case QUERY_NODE_SHOW_USER_REDS_STMT:
+    case QUERY_NODE_SHOW_TABLE_REDS_STMT:
       return makeNode(type, sizeof(SShowStmt));
+      break;
     case QUERY_NODE_SHOW_TABLE_TAGS_STMT:
       return makeNode(type, sizeof(SShowTableTagsStmt));
     case QUERY_NODE_SHOW_DNODE_VARIABLES_STMT:
@@ -1212,7 +1215,9 @@ void nodesDestroyNode(SNode* pNode) {
     case QUERY_NODE_SHOW_GRANTS_LOGS_STMT:
     case QUERY_NODE_SHOW_CLUSTER_MACHINES_STMT:
     case QUERY_NODE_SHOW_ENCRYPTIONS_STMT:
-    case QUERY_NODE_SHOW_TSMAS_STMT: {
+    case QUERY_NODE_SHOW_TSMAS_STMT:
+    case QUERY_NODE_SHOW_USER_REDS_STMT:
+    case QUERY_NODE_SHOW_TABLE_REDS_STMT: {
       SShowStmt* pStmt = (SShowStmt*)pNode;
       nodesDestroyNode(pStmt->pDbName);
       nodesDestroyNode(pStmt->pTbName);

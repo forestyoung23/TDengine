@@ -97,6 +97,7 @@ static int32_t  mndProcessDropUserReq(SRpcMsg *pReq);
 static int32_t  mndProcessGetUserAuthReq(SRpcMsg *pReq);
 static int32_t  mndProcessGetUserWhiteListReq(SRpcMsg *pReq);
 static int32_t  mndRetrieveUsers(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows);
+static int32_t  mndRetrieveUsersRed(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows);
 static void     mndCancelGetNextUser(SMnode *pMnode, void *pIter);
 static int32_t  mndRetrievePrivileges(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows);
 static void     mndCancelGetNextPrivileges(SMnode *pMnode, void *pIter);
@@ -502,6 +503,8 @@ int32_t mndInitUser(SMnode *pMnode) {
 
   mndAddShowRetrieveHandle(pMnode, TSDB_MGMT_TABLE_USER, mndRetrieveUsers);
   mndAddShowFreeIterHandle(pMnode, TSDB_MGMT_TABLE_USER, mndCancelGetNextUser);
+  mndAddShowRetrieveHandle(pMnode, TSDB_MGMT_TABLE_USER_REDS, mndRetrieveUsersRed);
+  mndAddShowFreeIterHandle(pMnode, TSDB_MGMT_TABLE_USER_REDS, mndCancelGetNextUser);
   mndAddShowRetrieveHandle(pMnode, TSDB_MGMT_TABLE_PRIVILEGES, mndRetrievePrivileges);
   mndAddShowFreeIterHandle(pMnode, TSDB_MGMT_TABLE_PRIVILEGES, mndCancelGetNextPrivileges);
   return sdbSetTable(pMnode->pSdb, table);
@@ -2284,15 +2287,22 @@ _OVER:
   return code;
 }
 
+
 static int32_t mndRetrieveUsers(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows) {
   SMnode   *pMnode = pReq->info.node;
   SSdb     *pSdb = pMnode->pSdb;
+  int32_t   code = 0;
+  int32_t   lino = 0;
   int32_t   numOfRows = 0;
   SUserObj *pUser = NULL;
   int32_t   cols = 0;
-  char     *pWrite;
+  int8_t    flag = 0;
+  char     *pWrite = NULL;
+  char     *buf = NULL;
+  char     *varstr = NULL;
 
   while (numOfRows < rows) {
+#if 0
     pShow->pIter = sdbFetch(pSdb, SDB_USER, pShow->pIter, (void **)&pUser);
     if (pShow->pIter == NULL) break;
 
@@ -2300,49 +2310,64 @@ static int32_t mndRetrieveUsers(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBl
     SColumnInfoData *pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
     char             name[TSDB_USER_LEN + VARSTR_HEADER_SIZE] = {0};
     STR_WITH_MAXSIZE_TO_VARSTR(name, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
-    colDataSetVal(pColInfo, numOfRows, (const char *)name, false);
+    COL_DATA_SET_VAL_GOTO((const char *)name, false, pUser, _exit);
 
     cols++;
     pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
-    colDataSetVal(pColInfo, numOfRows, (const char *)&pUser->superUser, false);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->superUser, false, pUser, _exit);
 
     cols++;
     pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
-    colDataSetVal(pColInfo, numOfRows, (const char *)&pUser->enable, false);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->enable, false, pUser, _exit);
 
     cols++;
     pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
-    colDataSetVal(pColInfo, numOfRows, (const char *)&pUser->sysInfo, false);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->sysInfo, false, pUser, _exit);
+
+    cols++;
+    flag = pUser->createdb ? 1 : 0;
+    pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    COL_DATA_SET_VAL_GOTO((const char *)&flag, false, pUser, _exit);
 
     cols++;
     pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
-    colDataSetVal(pColInfo, numOfRows, (const char *)&pUser->createdTime, false);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->createdTime, false, pUser, _exit);
 
     cols++;
 
-    char   *buf = NULL;
     int32_t tlen = convertIpWhiteListToStr(pUser->pIpWhiteList, &buf);
     // int32_t tlen = mndFetchIpWhiteList(pUser->pIpWhiteList, &buf);
     if (tlen != 0) {
-      char *varstr = taosMemoryCalloc(1, VARSTR_HEADER_SIZE + tlen);
+      TAOS_MEMORY_REALLOC(varstr, VARSTR_HEADER_SIZE + tlen);
+      if (varstr == NULL) {
+        sdbRelease(pSdb, pUser);
+        TAOS_CHECK_GOTO(terrno, &lino, _exit);
+      }
       varDataSetLen(varstr, tlen);
-      memcpy(varDataVal(varstr), buf, tlen);
+      (void)memcpy(varDataVal(varstr), buf, tlen);
 
       pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
-      colDataSetVal(pColInfo, numOfRows, (const char *)varstr, false);
+      COL_DATA_SET_VAL_GOTO((const char *)varstr, false, pUser, _exit);
 
-      taosMemoryFree(varstr);
-      taosMemoryFree(buf);
+      taosMemoryFreeClear(buf);
     } else {
       pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
-      colDataSetVal(pColInfo, numOfRows, (const char *)NULL, true);
+      COL_DATA_SET_VAL_GOTO((const char *)NULL, true, pUser, _exit);
     }
 
     numOfRows++;
     sdbRelease(pSdb, pUser);
+#endif
   }
 
   pShow->numOfRows += numOfRows;
+_exit:
+  taosMemoryFreeClear(buf);
+  taosMemoryFreeClear(varstr);
+  if (code < 0) {
+    uError("%s failed at line %d since %s", __func__, lino, tstrerror(code));
+    return terrno = code;
+  }
   return numOfRows;
 }
 
@@ -2350,6 +2375,93 @@ static void mndCancelGetNextUser(SMnode *pMnode, void *pIter) {
   SSdb *pSdb = pMnode->pSdb;
   sdbCancelFetch(pSdb, pIter);
 }
+
+static int32_t mndRetrieveUsersRed(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows) {
+#if 0
+  SMnode   *pMnode = pReq->info.node;
+  SSdb     *pSdb = pMnode->pSdb;
+  int32_t   code = 0;
+  int32_t   lino = 0;
+  int32_t   numOfRows = 0;
+  SUserObj *pUser = NULL;
+  int32_t   cols = 0;
+  int8_t    flag = 0;
+  char     *pWrite = NULL;
+  char     *buf = NULL;
+  char     *varstr = NULL;
+
+  while (numOfRows < rows) {
+#if 0
+    pShow->pIter = sdbFetch(pSdb, SDB_USER, pShow->pIter, (void **)&pUser);
+    if (pShow->pIter == NULL) break;
+
+    cols = 0;
+    SColumnInfoData *pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    char             name[TSDB_USER_LEN + VARSTR_HEADER_SIZE] = {0};
+    STR_WITH_MAXSIZE_TO_VARSTR(name, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+    COL_DATA_SET_VAL_GOTO((const char *)name, false, pUser, _exit);
+
+    cols++;
+    pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->superUser, false, pUser, _exit);
+
+    cols++;
+    pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->enable, false, pUser, _exit);
+
+    cols++;
+    pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->sysInfo, false, pUser, _exit);
+
+    cols++;
+    flag = pUser->createdb ? 1 : 0;
+    pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    COL_DATA_SET_VAL_GOTO((const char *)&flag, false, pUser, _exit);
+
+    cols++;
+    pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+    COL_DATA_SET_VAL_GOTO((const char *)&pUser->createdTime, false, pUser, _exit);
+
+    cols++;
+
+    int32_t tlen = convertIpWhiteListToStr(pUser->pIpWhiteList, &buf);
+    // int32_t tlen = mndFetchIpWhiteList(pUser->pIpWhiteList, &buf);
+    if (tlen != 0) {
+      TAOS_MEMORY_REALLOC(varstr, VARSTR_HEADER_SIZE + tlen);
+      if (varstr == NULL) {
+        sdbRelease(pSdb, pUser);
+        TAOS_CHECK_GOTO(terrno, &lino, _exit);
+      }
+      varDataSetLen(varstr, tlen);
+      (void)memcpy(varDataVal(varstr), buf, tlen);
+
+      pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+      COL_DATA_SET_VAL_GOTO((const char *)varstr, false, pUser, _exit);
+
+      taosMemoryFreeClear(buf);
+    } else {
+      pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
+      COL_DATA_SET_VAL_GOTO((const char *)NULL, true, pUser, _exit);
+    }
+
+    numOfRows++;
+    sdbRelease(pSdb, pUser);
+#endif
+  }
+
+  pShow->numOfRows += numOfRows;
+_exit:
+  taosMemoryFreeClear(buf);
+  taosMemoryFreeClear(varstr);
+  if (code < 0) {
+    uError("%s failed at line %d since %s", __func__, lino, tstrerror(code));
+    TAOS_RETURN(code);
+  }
+  return numOfRows;
+#endif
+  return 0;
+}
+
 
 static void mndLoopHash(SHashObj *hash, char *priType, SSDataBlock *pBlock, int32_t *numOfRows, char *user,
                         SShowObj *pShow) {

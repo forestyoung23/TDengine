@@ -494,6 +494,8 @@ col_name(A) ::= column_name(B).                                                 
 cmd ::= SHOW DNODES.                                                              { pCxt->pRootNode = createShowStmt(pCxt, QUERY_NODE_SHOW_DNODES_STMT); }
 cmd ::= SHOW USERS.                                                               { pCxt->pRootNode = createShowStmt(pCxt, QUERY_NODE_SHOW_USERS_STMT); }
 cmd ::= SHOW USER PRIVILEGES.                                                     { pCxt->pRootNode = createShowStmt(pCxt, QUERY_NODE_SHOW_USER_PRIVILEGES_STMT); }
+cmd ::= SHOW USER REDS.                                                           { pCxt->pRootNode = createShowStmt(pCxt, QUERY_NODE_SHOW_USER_REDS_STMT); }
+cmd ::= SHOW TABLE REDS.                                                          { pCxt->pRootNode = createShowStmt(pCxt, QUERY_NODE_SHOW_TABLE_REDS_STMT); }
 cmd ::= SHOW db_kind_opt(A) DATABASES.                                            {
                                                                                     pCxt->pRootNode = createShowStmt(pCxt, QUERY_NODE_SHOW_DATABASES_STMT);
                                                                                     setShowKind(pCxt, pCxt->pRootNode, A);

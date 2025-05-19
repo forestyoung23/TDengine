@@ -613,6 +613,16 @@ static int32_t collectMetaKeyFromShowUserPrivileges(SCollectMetaKeyCxt* pCxt, SS
                                  pCxt->pMetaCache);
 }
 
+static int32_t collectMetaKeyFromShowUserReds(SCollectMetaKeyCxt* pCxt, SShowStmt* pStmt) {
+  return reserveTableMetaInCache(pCxt->pParseCxt->acctId, TSDB_INFORMATION_SCHEMA_DB, TSDB_INS_TABLE_USER_REDS,
+                                 pCxt->pMetaCache);
+}
+
+static int32_t collectMetaKeyFromShowTableReds(SCollectMetaKeyCxt* pCxt, SShowStmt* pStmt) {
+  return reserveTableMetaInCache(pCxt->pParseCxt->acctId, TSDB_INFORMATION_SCHEMA_DB, TSDB_INS_TABLE_TABLE_REDS,
+                                 pCxt->pMetaCache);
+}
+
 static int32_t collectMetaKeyFromShowViews(SCollectMetaKeyCxt* pCxt, SShowStmt* pStmt) {
   int32_t code = reserveTableMetaInCache(pCxt->pParseCxt->acctId, TSDB_INFORMATION_SCHEMA_DB, TSDB_INS_TABLE_VIEWS,
                                          pCxt->pMetaCache);
@@ -896,6 +906,10 @@ static int32_t collectMetaKeyFromQuery(SCollectMetaKeyCxt* pCxt, SNode* pStmt) {
       return collectMetaKeyFromShowStableTags(pCxt, (SShowTableTagsStmt*)pStmt);
     case QUERY_NODE_SHOW_USERS_STMT:
       return collectMetaKeyFromShowUsers(pCxt, (SShowStmt*)pStmt);
+    case QUERY_NODE_SHOW_USER_REDS_STMT:
+      return collectMetaKeyFromShowUserReds(pCxt, (SShowStmt*)pStmt);
+    case QUERY_NODE_SHOW_TABLE_REDS_STMT:
+      return collectMetaKeyFromShowTableReds(pCxt, (SShowStmt*)pStmt);
     case QUERY_NODE_SHOW_LICENCES_STMT:
       return collectMetaKeyFromShowLicence(pCxt, (SShowStmt*)pStmt);
     case QUERY_NODE_SHOW_VGROUPS_STMT:
