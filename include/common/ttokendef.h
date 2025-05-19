@@ -54,9 +54,9 @@
 #define TK_ENABLE                          36
 #define TK_NK_INTEGER                      37
 #define TK_SYSINFO                         38
-#define TK_ADD                             39
-#define TK_DROP                            40
-#define TK_READ_LEVEL                      41
+#define TK_READ_LEVEL                      39
+#define TK_ADD                             40
+#define TK_DROP                            41
 #define TK_GRANT                           42
 #define TK_ON                              43
 #define TK_TO                              44

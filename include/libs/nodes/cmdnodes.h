@@ -276,6 +276,7 @@ typedef struct SAlterUserStmt {
   char        password[TSDB_USET_PASSWORD_LEN];
   int8_t      enable;
   int8_t      sysinfo;
+  int8_t      readLevel;
   int32_t     numIpRanges;
   SIpV4Range* pIpRanges;
 

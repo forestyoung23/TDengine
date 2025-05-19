@@ -68,6 +68,7 @@ int32_t mndSetUserAuthRsp(SMnode *pMnode, SUserObj *pUser, SGetUserAuthRsp *pRsp
   pRsp->superAuth = 1;
   pRsp->enable = pUser->enable;
   pRsp->sysInfo = pUser->sysInfo;
+  pRsp->readLevel = pUser->readLevel;
   pRsp->version = pUser->authVersion;
   pRsp->passVer = pUser->passVersion;
   pRsp->whiteListVer = pUser->ipWhiteListVer;

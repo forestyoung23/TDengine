@@ -191,6 +191,7 @@ typedef enum _mgmt_table {
 #define TSDB_ALTER_USER_DEL_PRIVILEGES  0x6
 #define TSDB_ALTER_USER_ADD_WHITE_LIST  0x7
 #define TSDB_ALTER_USER_DROP_WHITE_LIST 0x8
+#define TSDB_ALTER_USER_READ_LEVEL      0x9
 
 #define TSDB_KILL_MSG_LEN 30
 
@@ -1063,6 +1064,7 @@ typedef struct {
   int8_t      sysInfo;
   int8_t      enable;
   int8_t      isView;
+  int8_t      readLevel;
   char        user[TSDB_USER_LEN];
   char        pass[TSDB_USET_PASSWORD_LEN];
   char        objname[TSDB_DB_FNAME_LEN];  // db or topic
@@ -1095,6 +1097,7 @@ typedef struct {
   int8_t    sysInfo;
   int8_t    enable;
   int8_t    dropped;
+  int8_t    readLevel;
   SHashObj* createdDbs;
   SHashObj* readDbs;
   SHashObj* writeDbs;

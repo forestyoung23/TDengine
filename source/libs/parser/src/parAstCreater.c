@@ -2331,6 +2331,16 @@ SNode* createAlterUserStmt(SAstCreateContext* pCxt, SToken* pUserName, int8_t al
       pStmt->sysinfo = taosStr2Int8(pVal->z, NULL, 10);
       break;
     }
+    case TSDB_ALTER_USER_READ_LEVEL: {
+      int64_t readLevel = taosStr2Int64(((SToken*)pAlterInfo)->z, NULL, 10);
+      if(readLevel > TSDB_MAX_READ_LEVEL || readLevel < TSDB_MIN_READ_LEVEL) {
+        pCxt->errCode = TSDB_CODE_OUT_OF_RANGE;
+        nodesDestroyNode((SNode*)pStmt);
+        return NULL;
+      }
+      pStmt->readLevel = readLevel;
+      break;
+    }
     case TSDB_ALTER_USER_ADD_WHITE_LIST:
     case TSDB_ALTER_USER_DROP_WHITE_LIST: {
       SNodeList* pIpRangesNodeList = pAlterInfo;

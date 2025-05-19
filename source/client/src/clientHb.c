@@ -116,6 +116,12 @@ static int32_t hbUpdateUserAuthInfo(SAppHbMgr *pAppHbMgr, SUserAuthBatchRsp *bat
                  pTscObj->sysInfo, pRsp->sysInfo, pTscObj->id);
         pTscObj->sysInfo = pRsp->sysInfo;
       }
+  
+      if(pTscObj->readLevel != pRsp->readLevel) {
+        tscDebug("update readLevel of user %s from %" PRIi8 " to %" PRIi8 ", tscRid:%" PRIi64, pRsp->user,
+                 pTscObj->readLevel, pRsp->readLevel, pTscObj->id);
+        pTscObj->readLevel = pRsp->readLevel;
+      }
 
       if (pTscObj->passInfo.fp) {
         SPassInfo *passInfo = &pTscObj->passInfo;
