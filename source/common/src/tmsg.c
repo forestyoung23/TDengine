@@ -777,10 +777,14 @@ int32_t tSerializeSMAlterStbReq(void *buf, int32_t bufLen, SMAlterStbReq *pReq) 
   if (tEncodeI8(&encoder, pReq->alterType) < 0) return -1;
   if (tEncodeI32(&encoder, pReq->numOfFields) < 0) return -1;
   for (int32_t i = 0; i < pReq->numOfFields; ++i) {
-    SField *pField = taosArrayGet(pReq->pFields, i);
+    TAOS_FIELD_EX *pField = taosArrayGet(pReq->pFields, i);
     if (tEncodeI8(&encoder, pField->type) < 0) return -1;
     if (tEncodeI32(&encoder, pField->bytes) < 0) return -1;
     if (tEncodeCStr(&encoder, pField->name) < 0) return -1;
+    if (tEncodeI8(&encoder, pField->readLevel) < 0) return -1;
+    if (tEncodeI8(&encoder, pField->readRule) < 0) return -1;
+    if (tEncodeI32v(&encoder, pField->readRange[0]) < 0) return -1;
+    if (tEncodeI32v(&encoder, pField->readRange[1]) < 0) return -1;
   }
   if (tEncodeI32(&encoder, pReq->ttl) < 0) return -1;
   if (tEncodeI32(&encoder, pReq->commentLen) < 0) return -1;
@@ -803,17 +807,21 @@ int32_t tDeserializeSMAlterStbReq(void *buf, int32_t bufLen, SMAlterStbReq *pReq
   if (tDecodeCStrTo(&decoder, pReq->name) < 0) return -1;
   if (tDecodeI8(&decoder, &pReq->alterType) < 0) return -1;
   if (tDecodeI32(&decoder, &pReq->numOfFields) < 0) return -1;
-  pReq->pFields = taosArrayInit(pReq->numOfFields, sizeof(SField));
+  pReq->pFields = taosArrayInit(pReq->numOfFields, sizeof(TAOS_FIELD_EX));
   if (pReq->pFields == NULL) {
     terrno = TSDB_CODE_OUT_OF_MEMORY;
     return -1;
   }
 
   for (int32_t i = 0; i < pReq->numOfFields; ++i) {
-    SField field = {0};
+    TAOS_FIELD_EX field = {0};
     if (tDecodeI8(&decoder, &field.type) < 0) return -1;
     if (tDecodeI32(&decoder, &field.bytes) < 0) return -1;
     if (tDecodeCStrTo(&decoder, field.name) < 0) return -1;
+    if (tDecodeI8(&decoder, &field.readLevel) < 0) return -1;
+    if (tDecodeI8(&decoder, &field.readRule) < 0) return -1;
+    if (tDecodeI32v(&decoder, &field.readRange[0]) < 0) return -1;
+    if (tDecodeI32v(&decoder, &field.readRange[1]) < 0) return -1;
     if (taosArrayPush(pReq->pFields, &field) == NULL) {
       terrno = TSDB_CODE_OUT_OF_MEMORY;
       return -1;

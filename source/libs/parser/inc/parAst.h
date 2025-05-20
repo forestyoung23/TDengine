@@ -81,17 +81,6 @@ typedef enum ETableOptionType {
   TABLE_OPTION_DELETE_MARK,
 } ETableOptionType;
 
-typedef enum EColumnOptionType {
-  COLUMN_OPTION_COMMENT = 1,
-  COLUMN_OPTION_ENCODE,
-  COLUMN_OPTION_COMPRESS,
-  COLUMN_OPTION_LEVEL,
-  COLUMN_OPTION_PRIMARYKEY,
-  COLUMN_OPTION_READ_LEVEL,
-  COLUMN_OPTION_READ_RULE,
-  COLUMN_OPTION_READ_RANGE,
-} EColumnOptionType;
-
 typedef struct SAlterOption {
   int32_t    type;
   SToken     val;

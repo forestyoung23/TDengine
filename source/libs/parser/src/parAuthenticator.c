@@ -294,10 +294,18 @@ static int32_t authDropStable(SAuthCxt* pCxt, SDropSuperTableStmt* pStmt) {
 static int32_t authAlterTable(SAuthCxt* pCxt, SAlterTableStmt* pStmt) {
   SNode* pTagCond = NULL;
   // todo check tag condition for subtable
+  // check read_level/read-rule/read-range
+  if (!pCxt->pParseCxt->isSuperUser && (pStmt->alterType == TSDB_ALTER_TABLE_UPDATE_COLUMN_COMPRESS)) {
+    SColumnOptions* pOpt = NULL;
+    if ((pOpt = pStmt->pColOptions) && pOpt->opType == COLUMN_OPTION_READ_LEVEL ||
+        pOpt->opType == COLUMN_OPTION_READ_RULE || pOpt->opType == COLUMN_OPTION_READ_RANGE) {
+      return TSDB_CODE_PAR_PERMISSION_DENIED;
+    }
+  }
   return checkAuth(pCxt, pStmt->dbName, pStmt->tableName, AUTH_TYPE_WRITE, NULL);
 }
 
-static int32_t authCreateView(SAuthCxt* pCxt, SCreateViewStmt* pStmt) {
+  static int32_t authCreateView(SAuthCxt * pCxt, SCreateViewStmt * pStmt) {
 #ifndef TD_ENTERPRISE
   return TSDB_CODE_OPS_NOT_SUPPORT;
 #endif

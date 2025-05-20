@@ -1760,7 +1760,7 @@ static int32_t mndUpdateSuperTableColumnCompress(SMnode *pMnode, const SStbObj *
   // if (pColCmpr == NULL || colName == NULL) return -1;
 
   ASSERT(taosArrayGetSize(pField) == nCols);
-  TAOS_FIELD *p = taosArrayGet(pField, 0);
+  TAOS_FIELD_EX *p = taosArrayGet(pField, 0);
 
   int32_t code = 0;
   int32_t idx = mndFindSuperTableColumnIndex(pOld, p->name);
@@ -1772,6 +1772,22 @@ static int32_t mndUpdateSuperTableColumnCompress(SMnode *pMnode, const SStbObj *
   col_id_t colId = pTarget->colId;
   if (mndCheckColAndTagModifiable(pMnode, pOld->name, pOld->uid, colId) != 0) {
     return -1;
+  }
+
+  // update readOptions
+  int8_t readOpUpdated = 0;
+  if (p->readLevel != -1) {
+    pTarget->readLevel = p->readLevel;
+    if (!readOpUpdated) readOpUpdated = 1;
+  }
+  if (p->readRule != -1) {
+    pTarget->readRule = p->readRule;
+    if (!readOpUpdated) readOpUpdated = 1;
+  }
+  if (p->readRange[0] != -1 && p->readRange[1] != -1) {
+    pTarget->readRange[0] = p->readRange[0];
+    pTarget->readRange[1] = p->readRange[1];
+    if (!readOpUpdated) readOpUpdated = 1;
   }
 
   if (mndAllocStbSchemas(pOld, pNew) != 0) {
@@ -1790,12 +1806,12 @@ static int32_t mndUpdateSuperTableColumnCompress(SMnode *pMnode, const SStbObj *
       uint32_t dst = 0;
       updated = tUpdateCompress(pCmpr->alg, p->bytes, TSDB_COLVAL_COMPRESS_DISABLED, TSDB_COLVAL_LEVEL_DISABLED,
                                 TSDB_COLVAL_LEVEL_MEDIUM, &dst);
+
       if (updated) pCmpr->alg = dst;
       break;
     }
   }
-
-  if (updated == 0) {
+  if (updated == 0 && readOpUpdated == 0) {
     terrno = TSDB_CODE_MND_COLUMN_COMPRESS_ALREADY_EXIST;
     return -1;
   }

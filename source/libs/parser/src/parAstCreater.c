@@ -1729,6 +1729,7 @@ SNode* createDefaultColumnOptions(SAstCreateContext* pCxt) {
 
 SNode* setColumnOptions(SAstCreateContext* pCxt, SNode* pOptions, EColumnOptionType type, void* pVal) {
   CHECK_PARSER_STATUS(pCxt);
+  ((SColumnOptions*)pOptions)->opType |= type; // multiple options can be set simultaneously
   switch (type) {
     case COLUMN_OPTION_ENCODE:
       memset(((SColumnOptions*)pOptions)->encode, 0, TSDB_CL_COMPRESS_OPTION_LEN);

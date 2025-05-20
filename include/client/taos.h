@@ -95,6 +95,15 @@ typedef struct TAOS_FIELD_E {
   int32_t bytes;
 } TAOS_FIELD_E;
 
+typedef struct TAOS_FIELD_EX {
+  char    name[65];
+  int8_t  type;
+  int8_t readLevel;
+  int8_t readRule;
+  int32_t bytes;
+  int32_t readRange[2];
+} TAOS_FIELD_EX;
+
 #ifdef WINDOWS
 #define DLL_EXPORT __declspec(dllexport)
 #else

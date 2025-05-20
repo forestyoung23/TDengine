@@ -8141,7 +8141,7 @@ static int32_t buildAlterSuperTableReq(STranslateContext* pCxt, SAlterTableStmt*
     return TSDB_CODE_SUCCESS;
   }
 
-  pAlterReq->pFields = taosArrayInit(2, sizeof(TAOS_FIELD));
+  pAlterReq->pFields = taosArrayInit(2, sizeof(TAOS_FIELD_EX));
   if (NULL == pAlterReq->pFields) {
     return TSDB_CODE_OUT_OF_MEMORY;
   }
@@ -8153,31 +8153,49 @@ static int32_t buildAlterSuperTableReq(STranslateContext* pCxt, SAlterTableStmt*
     case TSDB_ALTER_TABLE_DROP_COLUMN:
     case TSDB_ALTER_TABLE_UPDATE_COLUMN_BYTES:
     case TSDB_ALTER_TABLE_UPDATE_TAG_BYTES: {
-      TAOS_FIELD field = {.type = pStmt->dataType.type, .bytes = calcTypeBytes(pStmt->dataType)};
+      TAOS_FIELD_EX field = {.type = pStmt->dataType.type, .bytes = calcTypeBytes(pStmt->dataType)};
       strcpy(field.name, pStmt->colName);
       taosArrayPush(pAlterReq->pFields, &field);
       break;
     }
     case TSDB_ALTER_TABLE_UPDATE_TAG_NAME:
     case TSDB_ALTER_TABLE_UPDATE_COLUMN_NAME: {
-      TAOS_FIELD oldField = {0};
+      TAOS_FIELD_EX oldField = {0};
       strcpy(oldField.name, pStmt->colName);
       taosArrayPush(pAlterReq->pFields, &oldField);
-      TAOS_FIELD newField = {0};
+      TAOS_FIELD_EX newField = {0};
       strcpy(newField.name, pStmt->newColName);
       taosArrayPush(pAlterReq->pFields, &newField);
       break;
     }
     case TSDB_ALTER_TABLE_UPDATE_COLUMN_COMPRESS: {
-      TAOS_FIELD field = {0};
+      TAOS_FIELD_EX field = {.readLevel = -1, .readRule = -1, .readRange = {-1, -1}};
       strcpy(field.name, pStmt->colName);
-      if (!checkColumnEncode(pStmt->pColOptions->encode)) return TSDB_CODE_TSC_ENCODE_PARAM_ERROR;
-      if (!checkColumnCompress(pStmt->pColOptions->compress)) return TSDB_CODE_TSC_COMPRESS_PARAM_ERROR;
-      if (!checkColumnLevel(pStmt->pColOptions->compressLevel)) return TSDB_CODE_TSC_COMPRESS_LEVEL_ERROR;
-      int32_t code =
-          setColCompressByOption(pStmt->dataType.type, columnEncodeVal(pStmt->pColOptions->encode),
-                                 columnCompressVal(pStmt->pColOptions->compress),
-                                 columnLevelVal(pStmt->pColOptions->compressLevel), false, (uint32_t*)&field.bytes);
+      int32_t code = 0;
+      if (pStmt->pColOptions->opType & COLUMN_OPTION_ENCODE || pStmt->pColOptions->opType & COLUMN_OPTION_COMPRESS ||
+          pStmt->pColOptions->opType & COLUMN_OPTION_LEVEL) {
+        if (!checkColumnEncode(pStmt->pColOptions->encode)) return TSDB_CODE_TSC_ENCODE_PARAM_ERROR;
+        if (!checkColumnCompress(pStmt->pColOptions->compress)) return TSDB_CODE_TSC_COMPRESS_PARAM_ERROR;
+        if (!checkColumnLevel(pStmt->pColOptions->compressLevel)) return TSDB_CODE_TSC_COMPRESS_LEVEL_ERROR;
+        code =
+            setColCompressByOption(pStmt->dataType.type, columnEncodeVal(pStmt->pColOptions->encode),
+                                   columnCompressVal(pStmt->pColOptions->compress),
+                                   columnLevelVal(pStmt->pColOptions->compressLevel), false, (uint32_t*)&field.bytes);
+      }
+
+      if (code == TSDB_CODE_SUCCESS && (pStmt->pColOptions->opType & COLUMN_OPTION_READ_LEVEL)) {
+        field.readLevel = pStmt->pColOptions->readLevel;
+      }
+
+      if (code == TSDB_CODE_SUCCESS && (pStmt->pColOptions->opType & COLUMN_OPTION_READ_RULE)) {
+        field.readRule = pStmt->pColOptions->readRule;
+      }
+
+      if (code == TSDB_CODE_SUCCESS && (pStmt->pColOptions->opType & COLUMN_OPTION_READ_RANGE)) {
+        field.readRange[0] = pStmt->pColOptions->readRange[0];
+        field.readRange[1] = pStmt->pColOptions->readRange[1];
+      }
+
       if (code != TSDB_CODE_SUCCESS) {
         return code;
       }
