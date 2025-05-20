@@ -1757,20 +1757,18 @@ SNode* setColumnOptions(SAstCreateContext* pCxt, SNode* pOptions, EColumnOptionT
       break;
     case COLUMN_OPTION_READ_LEVEL: {
       int64_t readLevel = taosStr2Int64(((SToken*)pVal)->z, NULL, 10);
-      if (readLevel > INT8_MAX) {
-        readLevel = INT8_MAX;
-      } else if (readLevel < INT8_MIN) {
-        readLevel = INT8_MIN;
+      if (readLevel > TSDB_MAX_READ_LEVEL || readLevel < TSDB_MIN_READ_LEVEL) {
+        pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+        goto _exit;
       }
       ((SColumnOptions*)pOptions)->readLevel = readLevel;
       break;
     }
     case COLUMN_OPTION_READ_RULE: {
       int64_t readRule = taosStr2Int64(((SToken*)pVal)->z, NULL, 10);
-      if (readRule > INT8_MAX) {
-        readRule = INT8_MAX;
-      } else if (readRule < INT8_MIN) {
-        readRule = INT8_MIN;
+      if (readRule > TSDB_MAX_READ_RULE || readRule < TSDB_MIN_READ_RULE) {
+        pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+        goto _exit;
       }
       ((SColumnOptions*)pOptions)->readRule = readRule;
       break;
@@ -2293,6 +2291,11 @@ SNode* createCreateUserStmt(SAstCreateContext* pCxt, SToken* pUserName, const ST
   if (!checkUserName(pCxt, pUserName) || !checkPassword(pCxt, pPassword, password)) {
     return NULL;
   }
+  if (readLevel > TSDB_MAX_READ_LEVEL || readLevel < TSDB_MIN_READ_LEVEL) {
+    pCxt->errCode = TSDB_CODE_OUT_OF_RANGE;
+    return NULL;
+  }
+
   SCreateUserStmt* pStmt = (SCreateUserStmt*)nodesMakeNode(QUERY_NODE_CREATE_USER_STMT);
   CHECK_OUT_OF_MEM(pStmt);
   COPY_STRING_FORM_ID_TOKEN(pStmt->userName, pUserName);
