@@ -186,7 +186,7 @@ typedef struct SColumnOptions {
   int8_t     readLevel;
   int8_t     readRule;
   int32_t    readRange[2];
-  SNodeList* pReadRange;
+  // SNodeList* pReadRange;
 } SColumnOptions;
 typedef struct SColumnDefNode {
   ENodeType type;

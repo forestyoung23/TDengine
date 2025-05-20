@@ -52,6 +52,7 @@ static int32_t  mndProcessTrimDbRsp(SRpcMsg *pReq);
 static int32_t  mndProcessTableMetaReq(SRpcMsg *pReq);
 static int32_t  mndRetrieveStb(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows);
 static int32_t  mndRetrieveStbCol(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows);
+static int32_t  mndRetrieveStbRed(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows);
 static void     mndCancelGetNextStb(SMnode *pMnode, void *pIter);
 static int32_t  mndProcessTableCfgReq(SRpcMsg *pReq);
 static int32_t  mndAlterStbImp(SMnode *pMnode, SRpcMsg *pReq, SDbObj *pDb, SStbObj *pStb, bool needRsp,
@@ -108,6 +109,9 @@ int32_t mndInitStb(SMnode *pMnode) {
 
   mndAddShowRetrieveHandle(pMnode, TSDB_MGMT_TABLE_COL, mndRetrieveStbCol);
   mndAddShowFreeIterHandle(pMnode, TSDB_MGMT_TABLE_COL, mndCancelGetNextStb);
+
+  mndAddShowRetrieveHandle(pMnode, TSDB_MGMT_TABLE_TABLE_REDS, mndRetrieveStbRed);
+  mndAddShowFreeIterHandle(pMnode, TSDB_MGMT_TABLE_TABLE_REDS, mndCancelGetNextStb);
 
   return sdbSetTable(pMnode->pSdb, table);
 }
@@ -910,6 +914,10 @@ int32_t mndBuildStbFromReq(SMnode *pMnode, SStbObj *pDst, SMCreateStbReq *pCreat
     pSchema->type = pField->type;
     pSchema->bytes = pField->bytes;
     pSchema->flags = pField->flags;
+    pSchema->readLevel = pField->readLevel;
+    pSchema->readRule = pField->readRule;
+    pSchema->readRange[0]= pField->readRange[0];
+    pSchema->readRange[1]= pField->readRange[1];
     memcpy(pSchema->name, pField->name, TSDB_COL_NAME_LEN);
     pSchema->colId = pDst->nextColId;
     pDst->nextColId++;
@@ -3733,6 +3741,126 @@ static int32_t mndRetrieveStbCol(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pB
 static void mndCancelGetNextStb(SMnode *pMnode, void *pIter) {
   SSdb *pSdb = pMnode->pSdb;
   sdbCancelFetch(pSdb, pIter);
+}
+
+static int32_t mndRetrieveStbRed(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBlock, int32_t rows) {
+  uint8_t  buildWhichDBs;
+  SMnode  *pMnode = pReq->info.node;
+  SSdb    *pSdb = pMnode->pSdb;
+  SStbObj *pStb = NULL;
+  int32_t  numOfRows = 0;
+
+  buildWhichDBs = determineBuildColForWhichDBs(pShow->db);
+
+#if 0
+  if (!pShow->sysDbRsp) {
+    numOfRows = buildSysDbColsInfo(pBlock, buildWhichDBs, pShow->filterTb);
+    mDebug("mndRetrieveStbCol get system table cols, rows:%d, db:%s", numOfRows, pShow->db);
+    pShow->sysDbRsp = true;
+  }
+#endif
+
+  if (buildWhichDBs & BUILD_COL_FOR_USER_DB) {
+    SDbObj *pDb = NULL;
+    if (strlen(pShow->db) > 0) {
+      pDb = mndAcquireDb(pMnode, pShow->db);
+      if (pDb == NULL && TSDB_CODE_MND_DB_NOT_EXIST != terrno && pBlock->info.rows == 0) return terrno;
+    }
+
+    char typeName[TSDB_TABLE_FNAME_LEN + VARSTR_HEADER_SIZE] = {0};
+    STR_TO_VARSTR(typeName, "SUPER_TABLE");
+    bool fetch = pShow->restore ? false : true;
+    pShow->restore = false;
+    while (numOfRows < rows) {
+      if (fetch) {
+        pShow->pIter = sdbFetch(pSdb, SDB_STB, pShow->pIter, (void **)&pStb);
+        if (pShow->pIter == NULL) break;
+      } else {
+        fetch = true;
+        void *pKey = taosHashGetKey(pShow->pIter, NULL);
+        pStb = sdbAcquire(pSdb, SDB_STB, pKey);
+        if (!pStb) continue;
+      }
+
+      if (pDb != NULL && pStb->dbUid != pDb->uid) {
+        sdbRelease(pSdb, pStb);
+        continue;
+      }
+
+      SName name = {0};
+      char  stbName[TSDB_TABLE_NAME_LEN + VARSTR_HEADER_SIZE] = {0};
+      mndExtractTbNameFromStbFullName(pStb->name, &stbName[VARSTR_HEADER_SIZE], TSDB_TABLE_NAME_LEN);
+      if (pShow->filterTb[0] && strncmp(pShow->filterTb, &stbName[VARSTR_HEADER_SIZE], TSDB_TABLE_NAME_LEN) != 0) {
+        sdbRelease(pSdb, pStb);
+        continue;
+      }
+
+      if ((numOfRows + pStb->numOfColumns) > rows) {
+        pShow->restore = true;
+        if (numOfRows == 0) {
+          mError("mndRetrieveStbRed failed to get stable red since buf:%d less than result:%d, stable name:%s, db:%s",
+                 rows, pStb->numOfColumns, pStb->name, pStb->db);
+        }
+        sdbRelease(pSdb, pStb);
+        break;
+      }
+
+      varDataSetLen(stbName, strlen(&stbName[VARSTR_HEADER_SIZE]));
+
+      mDebug("mndRetrieveStbRed get stable red, stable name:%s, db:%s", pStb->name, pStb->db);
+
+      char db[TSDB_DB_NAME_LEN + VARSTR_HEADER_SIZE] = {0};
+      tNameFromString(&name, pStb->db, T_NAME_ACCT | T_NAME_DB);
+      tNameGetDbName(&name, varDataVal(db));
+      varDataSetLen(db, strlen(varDataVal(db)));
+
+      for (int i = 0; i < pStb->numOfColumns; i++) {
+        int32_t          cols = 0;
+        SColumnInfoData *pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+        colDataSetVal(pColInfo, numOfRows, (const char *)stbName, false);
+
+        // pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+        // colDataSetVal(pColInfo, numOfRows, (const char *)db, false);
+
+        // col name
+        char colName[TSDB_COL_NAME_LEN + VARSTR_HEADER_SIZE] = {0};
+        STR_TO_VARSTR(colName, pStb->pColumns[i].name);
+        pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+        colDataSetVal(pColInfo, numOfRows, colName, false);
+
+        pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+        colDataSetVal(pColInfo, numOfRows, (const char*)&(pStb->pColumns[i].readLevel), false);
+
+        pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+        colDataSetVal(pColInfo, numOfRows, (const char*)&(pStb->pColumns[i].readRule), false);
+
+        // read range
+        pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+        char readRangeStr[VARSTR_HEADER_SIZE + 50];
+        int  readRangeLen = sprintf(varDataVal(readRangeStr), "[%d-%d]", pStb->pColumns[i].readRange[0],
+                                    pStb->pColumns[i].readRange[1]);
+        varDataSetLen(readRangeStr, readRangeLen);
+        colDataSetVal(pColInfo, numOfRows, (char *)readRangeStr, false);
+
+        while (cols < pShow->numOfColumns) {
+          pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
+          colDataSetNULL(pColInfo, numOfRows);
+        }
+        numOfRows++;
+      }
+
+      sdbRelease(pSdb, pStb);
+    }
+
+    if (pDb != NULL) {
+      mndReleaseDb(pMnode, pDb);
+    }
+  }
+
+  pShow->numOfRows += numOfRows;
+  mDebug("mndRetrieveStbRed success, rows:%d, pShow->numOfRows:%d", numOfRows, pShow->numOfRows);
+
+  return numOfRows;
 }
 
 const char *mndGetStbStr(const char *src) {

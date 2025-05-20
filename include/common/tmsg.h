@@ -480,6 +480,9 @@ typedef struct SFieldWithOptions {
   char     name[TSDB_COL_NAME_LEN];
   uint8_t  type;
   int8_t   flags;
+  int8_t   readLevel;
+  int8_t   readRule;
+  int32_t  readRange[2];
   int32_t  bytes;
   uint32_t compress;
 } SFieldWithOptions;

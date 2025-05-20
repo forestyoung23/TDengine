@@ -913,7 +913,7 @@ void nodesDestroyNode(SNode* pNode) {
     }
     case QUERY_NODE_COLUMN_OPTIONS: {
       SColumnOptions* pOptions = (SColumnOptions*)pNode;
-      nodesDestroyList(pOptions->pReadRange);
+      // nodesDestroyList(pOptions->pReadRange);
       break;
     }
     case QUERY_NODE_INDEX_OPTIONS: {

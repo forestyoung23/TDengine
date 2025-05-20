@@ -7267,6 +7267,10 @@ static int32_t columnDefNodeToField(SNodeList* pList, SArray** pArray, bool calB
       setColEncode(&field.compress, columnEncodeVal(((SColumnOptions*)pCol->pOptions)->encode));
       setColCompress(&field.compress, columnCompressVal(((SColumnOptions*)pCol->pOptions)->compress));
       setColLevel(&field.compress, columnLevelVal(((SColumnOptions*)pCol->pOptions)->compressLevel));
+      field.readLevel = ((SColumnOptions*)pCol->pOptions)->readLevel;
+      field.readRule = ((SColumnOptions*)pCol->pOptions)->readRule;
+      field.readRange[0] = ((SColumnOptions*)pCol->pOptions)->readRange[0];
+      field.readRange[1] = ((SColumnOptions*)pCol->pOptions)->readRange[1];
     }
     if (pCol->sma) {
       field.flags |= COL_SMA_ON;
@@ -7422,7 +7426,7 @@ static int32_t checkTableTagsSchema(STranslateContext* pCxt, SHashObj* pHash, SN
 
   return code;
 }
-
+#if 0
 static int32_t checkColumnReadRangeOption(STranslateContext* pCxt, SColumnOptions* pOptions) {
   if (NULL == pOptions->pReadRange) {
     return TSDB_CODE_SUCCESS;
@@ -7458,7 +7462,7 @@ static int32_t checkColumnReadRangeOption(STranslateContext* pCxt, SColumnOption
 
   return code;
 }
-
+#endif
 static int32_t checkTableColsSchema(STranslateContext* pCxt, SHashObj* pHash, int32_t ntags, SNodeList* pCols,
                                     SNodeList* pRollupFuncs) {
   int32_t ncols = LIST_LENGTH(pCols);
@@ -7487,9 +7491,9 @@ static int32_t checkTableColsSchema(STranslateContext* pCxt, SHashObj* pHash, in
         code = generateSyntaxErrMsg(&pCxt->msgBuf, TSDB_CODE_PAR_INVALID_FIRST_COLUMN);
       }
     }
-    if (TSDB_CODE_SUCCESS == code) {
-      code = checkColumnReadRangeOption(pCxt, (SColumnOptions*)pCol->pOptions);
-    }
+    // if (TSDB_CODE_SUCCESS == code) {
+    //   code = checkColumnReadRangeOption(pCxt, (SColumnOptions*)pCol->pOptions);
+    // }
     if (TSDB_CODE_SUCCESS == code && pCol->pOptions && ((SColumnOptions*)pCol->pOptions)->bPrimaryKey &&
         colIndex != 1) {
       code = generateSyntaxErrMsg(&pCxt->msgBuf, TSDB_CODE_PAR_SECOND_COL_PK);
