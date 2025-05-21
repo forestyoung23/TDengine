@@ -2315,7 +2315,13 @@ static int32_t mndRetrieveUsers(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *pBl
     cols = 0;
     SColumnInfoData *pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
     char             name[TSDB_USER_LEN + VARSTR_HEADER_SIZE] = {0};
-    STR_WITH_MAXSIZE_TO_VARSTR(name, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+
+    if (strncmp(pUser->user, "root", 4) == 0) {
+      STR_WITH_MAXSIZE_TO_VARSTR(name, "Admin", pShow->pMeta->pSchemas[cols].bytes);
+    } else {
+      STR_WITH_MAXSIZE_TO_VARSTR(name, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+    }
+
     colDataSetVal(pColInfo, numOfRows, (const char *)name, false);
 
     cols++;
@@ -2382,7 +2388,12 @@ static int32_t mndRetrieveUsersRed(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock *
     cols = 0;
     SColumnInfoData *pColInfo = taosArrayGet(pBlock->pDataBlock, cols);
     char             name[TSDB_USER_LEN + VARSTR_HEADER_SIZE] = {0};
-    STR_WITH_MAXSIZE_TO_VARSTR(name, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+
+    if (strncmp(pUser->user, "root", 4) == 0) {
+      STR_WITH_MAXSIZE_TO_VARSTR(name, "Admin", pShow->pMeta->pSchemas[cols].bytes);
+    } else {
+      STR_WITH_MAXSIZE_TO_VARSTR(name, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+    }
     colDataSetVal(pColInfo, numOfRows, (const char *)name, false);
 
     cols++;
@@ -2521,7 +2532,12 @@ static int32_t mndRetrievePrivileges(SRpcMsg *pReq, SShowObj *pShow, SSDataBlock
     if (pUser->superUser) {
       cols = 0;
       char userName[TSDB_USER_LEN + VARSTR_HEADER_SIZE] = {0};
-      STR_WITH_MAXSIZE_TO_VARSTR(userName, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+      if (strncmp(pUser->user, "root", 4) == 0) {
+        STR_WITH_MAXSIZE_TO_VARSTR(userName, "Admin", pShow->pMeta->pSchemas[cols].bytes);
+      } else {
+        STR_WITH_MAXSIZE_TO_VARSTR(userName, pUser->user, pShow->pMeta->pSchemas[cols].bytes);
+      }
+
       SColumnInfoData *pColInfo = taosArrayGet(pBlock->pDataBlock, cols++);
       colDataSetVal(pColInfo, numOfRows, (const char *)userName, false);
 

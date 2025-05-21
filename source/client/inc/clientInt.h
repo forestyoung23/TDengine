@@ -304,6 +304,8 @@ int32_t setQueryResultFromRsp(SReqResultInfo* pResultInfo, const SRetrieveTableR
 int32_t setResultDataPtr(SReqResultInfo* pResultInfo, TAOS_FIELD_EX* pFields, int32_t numOfCols, int32_t numOfRows,
                          bool convertUcs4);
 void    setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols);
+void    setResSchemaInfoEx(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols, const SSchema* pSchemas,
+                           int32_t nTotalCols);
 void    doFreeReqResultInfo(SReqResultInfo* pResInfo);
 int32_t transferTableNameList(const char* tbList, int32_t acctId, char* dbName, SArray** pReq);
 void    syncCatalogFn(SMetaData* pResult, void* param, int32_t code);

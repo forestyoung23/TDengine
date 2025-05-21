@@ -506,6 +506,68 @@ int32_t getPlan(SRequestObj* pRequest, SQuery* pQuery, SQueryPlan** pPlan, SArra
   return qCreateQueryPlan(&cxt, pPlan, pNodeList);
 }
 
+static const SSchema* getSchemaByColId(const SSchema* pSchema, int32_t numOfCols, int32_t colId) {
+  if (pSchema == NULL || colId < 0 || colId >= numOfCols) {
+    tscError("invalid paras, pSchema == NULL || colId < 0 || colId >= numOfCols");
+    return NULL;
+  }
+
+  for (int32_t i = 0; i < numOfCols; ++i) {
+    if (pSchema[i].colId == colId) {
+      return pSchema + i;
+    }
+  }
+  return NULL;
+}
+
+void setResSchemaInfoEx(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols, const SSchema* pSchemas,
+                        int32_t nTotalCols) {
+  if (pResInfo == NULL || pSchema == NULL || numOfCols <= 0) {
+    tscError("invalid paras, pResInfo == NULL || pSchema == NULL || numOfCols <= 0");
+    return;
+  }
+
+  pResInfo->numOfCols = numOfCols;
+  if (pResInfo->fields != NULL) {
+    taosMemoryFree(pResInfo->fields);
+  }
+  if (pResInfo->userFields != NULL) {
+    taosMemoryFree(pResInfo->userFields);
+  }
+  pResInfo->fields = taosMemoryCalloc(numOfCols, sizeof(TAOS_FIELD_EX));
+  pResInfo->userFields = taosMemoryCalloc(numOfCols, sizeof(TAOS_FIELD));
+  if (numOfCols != pResInfo->numOfCols) {
+    tscError("numOfCols:%d != pResInfo->numOfCols:%d", numOfCols, pResInfo->numOfCols);
+    return;
+  }
+
+  for (int32_t i = 0; i < pResInfo->numOfCols; ++i) {
+    pResInfo->fields[i].bytes = pSchema[i].bytes;
+    pResInfo->fields[i].type = pSchema[i].type;
+
+    pResInfo->userFields[i].bytes = pSchema[i].bytes;
+    pResInfo->userFields[i].type = pSchema[i].type;
+
+    if (pSchema[i].type == TSDB_DATA_TYPE_VARCHAR || pSchema[i].type == TSDB_DATA_TYPE_VARBINARY ||
+        pSchema[i].type == TSDB_DATA_TYPE_GEOMETRY) {
+      pResInfo->userFields[i].bytes -= VARSTR_HEADER_SIZE;
+    } else if (pSchema[i].type == TSDB_DATA_TYPE_NCHAR || pSchema[i].type == TSDB_DATA_TYPE_JSON) {
+      pResInfo->userFields[i].bytes = (pResInfo->userFields[i].bytes - VARSTR_HEADER_SIZE) / TSDB_NCHAR_SIZE;
+    }
+
+    tstrncpy(pResInfo->fields[i].name, pSchema[i].name, tListLen(pResInfo->fields[i].name));
+    tstrncpy(pResInfo->userFields[i].name, pSchema[i].name, tListLen(pResInfo->userFields[i].name));
+
+    const SSchema* pSchemaEx = getSchemaByColId(pSchemas, nTotalCols, pSchema[i].colId);
+    if (pSchemaEx) {
+      pResInfo->fields[i].readLevel = pSchemaEx->readLevel;
+      pResInfo->fields[i].readRule = pSchemaEx->readRule;
+      pResInfo->fields[i].readRange[0] = pSchemaEx->readRange[0];
+      pResInfo->fields[i].readRange[1] = pSchemaEx->readRange[1];
+    }
+  }
+}
+
 void setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols) {
   if (pResInfo == NULL || pSchema == NULL || numOfCols <= 0) {
     tscError("invalid paras, pResInfo == NULL || pSchema == NULL || numOfCols <= 0");
@@ -1799,7 +1861,7 @@ void* doFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4) 
   }
 
   if (setupOneRowPtr) {
-    doSetOneRowPtr(pResultInfo, INT32_MAX);
+    doSetOneRowPtr(pResultInfo, pRequest->pTscObj->readLevel);
     pResultInfo->current += 1;
   }
 
@@ -1838,7 +1900,7 @@ void* doAsyncFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertU
     return NULL;
   } else {
     if (setupOneRowPtr) {
-      doSetOneRowPtr(pResultInfo, INT32_MAX);
+      doSetOneRowPtr(pResultInfo, pRequest->pTscObj->readLevel);
       pResultInfo->current += 1;
     }
 

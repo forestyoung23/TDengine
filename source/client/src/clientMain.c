@@ -1006,7 +1006,14 @@ void handleQueryAnslyseRes(SSqlCallbackWrapper *pWrapper, SMetaData *pResultMeta
     }
 
     if (pQuery->haveResultSet) {
-      setResSchemaInfo(&pRequest->body.resInfo, pQuery->pResSchema, pQuery->numOfResCols);
+      STableMeta *pTbMeta = ((SMetaRes *) taosArrayGet(pResultMeta->pTableMeta,0))->pRes;
+      if (pTbMeta) {
+        setResSchemaInfoEx(&pRequest->body.resInfo, pQuery->pResSchema, pQuery->numOfResCols, pTbMeta->schema,
+                           pTbMeta->tableInfo.numOfColumns);
+      } else {
+        setResSchemaInfo(&pRequest->body.resInfo, pQuery->pResSchema, pQuery->numOfResCols);
+      }
+
       setResPrecision(&pRequest->body.resInfo, pQuery->precision);
     }
 

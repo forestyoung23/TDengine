@@ -596,6 +596,9 @@ struct SSchema2 {
   int8_t   flags;
   col_id_t colId;
   int32_t  bytes;
+  int32_t  readRange[2];
+  int8_t   readLevel;
+  int8_t   readRule;
   char     name[TSDB_COL_NAME_LEN];
   uint32_t compress;
 };

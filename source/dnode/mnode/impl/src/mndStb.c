@@ -2094,6 +2094,10 @@ static int32_t mndBuildStbSchemaImp(SDbObj *pDb, SStbObj *pStb, const char *tbNa
     pSchema->flags = pSrcSchema->flags;
     pSchema->colId = pSrcSchema->colId;
     pSchema->bytes = pSrcSchema->bytes;
+    pSchema->readLevel = pSrcSchema->readLevel;
+    pSchema->readRule = pSrcSchema->readRule;
+    pSchema->readRange[0] = pSrcSchema->readRange[0];
+    pSchema->readRange[1] = pSrcSchema->readRange[1];
   }
 
   for (int32_t i = 0; i < pStb->numOfTags; ++i) {
@@ -2104,6 +2108,10 @@ static int32_t mndBuildStbSchemaImp(SDbObj *pDb, SStbObj *pStb, const char *tbNa
     pSchema->flags = pSrcSchema->flags;
     pSchema->colId = pSrcSchema->colId;
     pSchema->bytes = pSrcSchema->bytes;
+    pSchema->readLevel = pSrcSchema->readLevel;
+    pSchema->readRule = pSrcSchema->readRule;
+    pSchema->readRange[0] = pSrcSchema->readRange[0];
+    pSchema->readRange[1] = pSrcSchema->readRange[1];
   }
   for (int32_t i = 0; i < pStb->numOfColumns; i++) {
     SColCmpr   *pCmpr = &pStb->pCmpr[i];
