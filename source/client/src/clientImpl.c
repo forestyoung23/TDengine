@@ -30,6 +30,7 @@
 #include "tversion.h"
 static int32_t       initEpSetFromCfg(const char* firstEp, const char* secondEp, SCorEpSet* pEpSet);
 static SMsgSendInfo* buildConnectMsg(SRequestObj* pRequest);
+static int32_t rewriteSql(const char* pSql, char** pOutputSql);
 
 static bool stringLengthCheck(const char* str, size_t maxsize) {
   if (str == NULL) {
@@ -197,17 +198,42 @@ int32_t buildRequest(uint64_t connId, const char* sql, int sqlLen, void* param, 
     return terrno;
   }
 
-  (*pRequest)->sqlstr = taosMemoryMalloc(sqlLen + 1);
-  if ((*pRequest)->sqlstr == NULL) {
-    tscError("0x%" PRIx64 " failed to prepare sql string buffer, %s", (*pRequest)->self, sql);
-    destroyRequest(*pRequest);
-    *pRequest = NULL;
-    return TSDB_CODE_OUT_OF_MEMORY;
+  {
+    // rewrite the original sql
+    // select test_udf('t1', 'root', name), test_udf('t1', 'root', card_id) from tx
+    // select test_udf('t1', 'root', 'select name, card_id from tx')
+    char* pSqlRes = NULL;
+    rewriteSql(sql, &pSqlRes);
+
+    if (pSqlRes != NULL) {
+      int32_t len = strlen(pSqlRes);
+
+      (*pRequest)->sqlstr = taosMemoryMalloc(len + 1);
+      if ((*pRequest)->sqlstr == NULL) {
+        tscError("0x%" PRIx64 " failed to prepare sql string buffer, %s", (*pRequest)->self, sql);
+        destroyRequest(*pRequest);
+        *pRequest = NULL;
+        return TSDB_CODE_OUT_OF_MEMORY;
+      }
+
+      strntolower((*pRequest)->sqlstr, pSqlRes, (int32_t)len);
+      (*pRequest)->sqlstr[len] = 0;
+      (*pRequest)->sqlLen = len;
+    } else {
+      (*pRequest)->sqlstr = taosMemoryMalloc(sqlLen + 1);
+      if ((*pRequest)->sqlstr == NULL) {
+        tscError("0x%" PRIx64 " failed to prepare sql string buffer, %s", (*pRequest)->self, sql);
+        destroyRequest(*pRequest);
+        *pRequest = NULL;
+        return TSDB_CODE_OUT_OF_MEMORY;
+      }
+
+      strntolower((*pRequest)->sqlstr, sql, (int32_t)sqlLen);
+      (*pRequest)->sqlstr[sqlLen] = 0;
+      (*pRequest)->sqlLen = sqlLen;
+    }
   }
 
-  strntolower((*pRequest)->sqlstr, sql, (int32_t)sqlLen);
-  (*pRequest)->sqlstr[sqlLen] = 0;
-  (*pRequest)->sqlLen = sqlLen;
   (*pRequest)->validateOnly = validateSql;
 
   ((SSyncQueryParam*)(*pRequest)->body.interParam)->userParam = param;
@@ -493,7 +519,7 @@ void setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t 
   if (pResInfo->userFields != NULL) {
     taosMemoryFree(pResInfo->userFields);
   }
-  pResInfo->fields = taosMemoryCalloc(numOfCols, sizeof(TAOS_FIELD));
+  pResInfo->fields = taosMemoryCalloc(numOfCols, sizeof(TAOS_FIELD_EX));
   pResInfo->userFields = taosMemoryCalloc(numOfCols, sizeof(TAOS_FIELD));
   if (numOfCols != pResInfo->numOfCols) {
     tscError("numOfCols:%d != pResInfo->numOfCols:%d", numOfCols, pResInfo->numOfCols);
@@ -516,6 +542,11 @@ void setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t 
 
     tstrncpy(pResInfo->fields[i].name, pSchema[i].name, tListLen(pResInfo->fields[i].name));
     tstrncpy(pResInfo->userFields[i].name, pSchema[i].name, tListLen(pResInfo->userFields[i].name));
+
+    pResInfo->fields[i].readLevel = pSchema[i].readLevel;
+    pResInfo->fields[i].readRule = pSchema[i].readRule;
+    pResInfo->fields[i].readRange[0] = pSchema[i].readRange[0];
+    pResInfo->fields[i].readRange[1] = pSchema[i].readRange[1];
   }
 }
 
@@ -1668,7 +1699,7 @@ TAOS* taos_connect_l(const char* ip, int ipLen, const char* user, int userLen, c
   return taos_connect(ipStr, userStr, passStr, dbStr, port);
 }
 
-void doSetOneRowPtr(SReqResultInfo* pResultInfo) {
+void doSetOneRowPtr(SReqResultInfo* pResultInfo, int32_t readLevel) {
   for (int32_t i = 0; i < pResultInfo->numOfCols; ++i) {
     SResultColumn* pCol = &pResultInfo->pCol[i];
 
@@ -1681,6 +1712,33 @@ void doSetOneRowPtr(SReqResultInfo* pResultInfo) {
 
         pResultInfo->length[i] = varDataLen(pStart);
         pResultInfo->row[i] = varDataVal(pStart);
+
+        {
+          if (!pResultInfo->valuemask) {
+            // do nothing
+          } else {
+            if ((readLevel >= pResultInfo->fields[i].readLevel) &&
+                (pResultInfo->numOfRows >= pResultInfo->fields[i].readRange[0]) &&
+                (pResultInfo->numOfRows <= pResultInfo->fields[i].readRange[1])) {
+              // do nothing
+            } else {
+              const char* pColName = pResultInfo->fields[i].name;
+
+              if ((strcmp(pColName, "name") == 0) || (strcmp(pColName, "salary") == 0) ||
+                  (strcmp(pColName, "phone_no") == 0) || (strcmp(pColName, "address") == 0)) {
+                // replace the middle chars
+                for (int32_t j = 1; j < pResultInfo->length[i] - 1; ++j) {
+                  ((char*)pResultInfo->row[i])[j] = '&';
+                }
+              } else if (strcmp(pColName, "card_id") == 0) {
+                // replace all
+                for (int32_t j = 0; j < pResultInfo->length[i]; ++j) {
+                  ((char*)pResultInfo->row[i])[j] = '#';
+                }
+              }
+            }
+          }
+        }
       } else {
         pResultInfo->row[i] = NULL;
         pResultInfo->length[i] = 0;
@@ -1741,7 +1799,7 @@ void* doFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4) 
   }
 
   if (setupOneRowPtr) {
-    doSetOneRowPtr(pResultInfo);
+    doSetOneRowPtr(pResultInfo, INT32_MAX);
     pResultInfo->current += 1;
   }
 
@@ -1780,7 +1838,7 @@ void* doAsyncFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertU
     return NULL;
   } else {
     if (setupOneRowPtr) {
-      doSetOneRowPtr(pResultInfo);
+      doSetOneRowPtr(pResultInfo, INT32_MAX);
       pResultInfo->current += 1;
     }
 
@@ -2059,7 +2117,7 @@ static int32_t doConvertJson(SReqResultInfo* pResultInfo, int32_t numOfCols, int
   return TSDB_CODE_SUCCESS;
 }
 
-int32_t setResultDataPtr(SReqResultInfo* pResultInfo, TAOS_FIELD* pFields, int32_t numOfCols, int32_t numOfRows,
+int32_t setResultDataPtr(SReqResultInfo* pResultInfo, TAOS_FIELD_EX* pFields, int32_t numOfCols, int32_t numOfRows,
                          bool convertUcs4) {
   if (ASSERT(numOfCols > 0 && pFields != NULL && pResultInfo != NULL)) {
     tscError("setResultDataPtr paras error");
@@ -2699,4 +2757,58 @@ int32_t clientParseSql(void* param, const char* dbName, const char* sql, bool pa
 #else
   return clientParseSqlImpl(param, dbName, sql, parseOnly, effectiveUser, pRes);
 #endif
+}
+
+
+// select test_udf('t1', 'root', 'select name, card_id from tx')
+// select test_udf('t1', 'root', name) name, test_udf('t1', 'root', card_id) card_id from tx
+int32_t rewriteSql(const char* pSql, char** pOutputSql) {
+  if (strstr(pSql, "test_udf") == 0) {
+    return 0;
+  }
+
+  char* pUserName = NULL;
+  char* pTable = NULL;
+
+  SArray* pColNames = taosArrayInit(4, sizeof(char*));
+
+  const char* p = "test_udf('";
+
+  char* pStart = strstr(pSql, p);
+  char* pEnd = strstr(pStart + strlen(p), "'");
+  pTable = strndup(pStart+strlen(p), pEnd - pStart - strlen(p));
+
+  pStart = strstr(pEnd + 1, "'");
+  pEnd = strstr(pStart + 1, "'");
+  pUserName = strndup(pStart + 1, pEnd - pStart - 1);
+
+  pStart = strstr(pEnd, "select");
+  pEnd = strstr(pStart, "from");
+
+  char* pCols = strndup(pStart + strlen("select"), pEnd - pStart - strlen("select"));
+
+  pStart = pEnd;
+  pEnd = strstr(pEnd, "')");
+  char* pRemain = strndup(pStart, pEnd - pStart);
+
+  int32_t num = 0;
+  char** pItems = strsplit(pCols, ",", &num);
+
+  char pRes[1024] = "select ";
+  for(int32_t i = 0; i < num; ++i) {
+    char buf[512] = {0};
+    sprintf(buf, "test_udf('%s', '%s', %s) %s ", pTable, pUserName, pItems[i], pItems[i]);
+
+    char* px = strcat(pRes, buf);
+    if (i < num - 1) {
+      px = strcat(px, ", ");
+    }
+    memset(buf, 0, tListLen(buf));
+  }
+
+  strcat(pRes, pRemain);
+  printf("%s\n", pRes);
+
+  *pOutputSql = strdup(pRes);
+  return 0;
 }

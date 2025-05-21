@@ -97,6 +97,10 @@ typedef struct SParseContext {
   void*            parseSqlParam;
   int8_t           biMode;
   SArray*          pSubMetaList;
+
+  bool             valueMask;
+  char* pTableName;
+  char* pQueryUser;
 } SParseContext;
 
 int32_t qParseSql(SParseContext* pCxt, SQuery** pQuery);

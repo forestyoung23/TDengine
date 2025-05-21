@@ -274,6 +274,14 @@ bool fmIsBlockDistFunc(int32_t funcId) {
   return FUNCTION_TYPE_BLOCK_DIST == funcMgtBuiltins[funcId].type;
 }
 
+bool fmIsValueMaskFunc(int32_t funcId) {
+  if (funcId < 0 || funcId >= funcMgtBuiltinsNum) {
+    return false;
+  }
+
+  return FUNCTION_TYPE_VALUE_MASK == funcMgtBuiltins[funcId].type;
+}
+
 bool fmIsIgnoreNullFunc(int32_t funcId) { return isSpecificClassifyFunc(funcId, FUNC_MGT_IGNORE_NULL_FUNC); }
 
 void fmFuncMgtDestroy() {

@@ -351,6 +351,8 @@ const char* nodesNodeName(ENodeType type) {
       return "PhysiSystemTableScan";
     case QUERY_NODE_PHYSICAL_PLAN_BLOCK_DIST_SCAN:
       return "PhysiBlockDistScan";
+    case QUERY_NODE_PHYSICAL_PLAN_VALUE_MASK:
+      return "PhysiValueMask";
     case QUERY_NODE_PHYSICAL_PLAN_LAST_ROW_SCAN:
       return "PhysiLastRowScan";
     case QUERY_NODE_PHYSICAL_PLAN_TABLE_COUNT_SCAN:

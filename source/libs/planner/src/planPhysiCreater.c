@@ -1743,6 +1743,64 @@ static int32_t createInterpFuncPhysiNode(SPhysiPlanContext* pCxt, SNodeList* pCh
   return code;
 }
 
+static int32_t createValueMaskFuncPhysiNode(SPhysiPlanContext* pCxt, SNodeList* pChildren,
+                                            SValueMaskLogicNode* pFuncLogicNode, SPhysiNode** pPhyNode) {
+  SValueMaskFuncPhysiNode* pValueMaskFunc =
+      (SValueMaskFuncPhysiNode*)makePhysiNode(pCxt, (SLogicNode*)pFuncLogicNode, QUERY_NODE_PHYSICAL_PLAN_VALUE_MASK);
+  if (NULL == pValueMaskFunc) {
+    return TSDB_CODE_OUT_OF_MEMORY;
+  }
+
+  SNodeList* pPrecalcExprs = NULL;
+  SNodeList* pFuncs = NULL;
+  int32_t    code = rewritePrecalcExprs(pCxt, pFuncLogicNode->pFuncs, &pPrecalcExprs, &pFuncs);
+
+  SDataBlockDescNode* pChildTupe = (((SPhysiNode*)nodesListGetNode(pChildren, 0))->pOutputDataBlockDesc);
+  // push down expression to pOutputDataBlockDesc of child node
+  if (TSDB_CODE_SUCCESS == code && NULL != pPrecalcExprs) {
+    code = setListSlotId(pCxt, pChildTupe->dataBlockId, -1, pPrecalcExprs, &pValueMaskFunc->pFuncs);
+    if (TSDB_CODE_SUCCESS == code) {
+      code = pushdownDataBlockSlots(pCxt, pValueMaskFunc->pFuncs, pChildTupe);
+    }
+  }
+
+  if (TSDB_CODE_SUCCESS == code) {
+    code = setListSlotId(pCxt, pChildTupe->dataBlockId, -1, pFuncs, &pValueMaskFunc->pFuncs);
+    if (TSDB_CODE_SUCCESS == code) {
+      code = addDataBlockSlots(pCxt, pValueMaskFunc->pFuncs, pValueMaskFunc->node.pOutputDataBlockDesc);
+    }
+  }
+
+  if (TSDB_CODE_SUCCESS == code) {
+//    pInterpFunc->timeRange = pFuncLogicNode->timeRange;
+//    pInterpFunc->interval = pFuncLogicNode->interval;
+//    pInterpFunc->fillMode = pFuncLogicNode->fillMode;
+//    pInterpFunc->pFillValues = nodesCloneNode(pFuncLogicNode->pFillValues);
+//    if (NULL != pFuncLogicNode->pFillValues && NULL == pInterpFunc->pFillValues) {
+//      code = TSDB_CODE_OUT_OF_MEMORY;
+//    }
+  }
+
+//  if (TSDB_CODE_SUCCESS == code) {
+//    code = setNodeSlotId(pCxt, pChildTupe->dataBlockId, -1, pFuncLogicNode->pTimeSeries, &pInterpFunc->pTimeSeries);
+//  }
+
+//  if (TSDB_CODE_SUCCESS == code) {
+//    code = setConditionsSlotId(pCxt, (const SLogicNode*)pFuncLogicNode, (SPhysiNode*)pInterpFunc);
+//  }
+
+  if (TSDB_CODE_SUCCESS == code) {
+    *pPhyNode = (SPhysiNode*)pValueMaskFunc;
+  } else {
+    nodesDestroyNode((SNode*)pValueMaskFunc);
+  }
+
+  nodesDestroyList(pPrecalcExprs);
+  nodesDestroyList(pFuncs);
+
+  return code;
+}
+
 static bool projectCanMergeDataBlock(SProjectLogicNode* pProject) {
   if (GROUP_ACTION_KEEP == pProject->node.groupAction) {
     return false;

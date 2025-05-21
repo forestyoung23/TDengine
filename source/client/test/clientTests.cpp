@@ -826,13 +826,31 @@ TEST(clientCase, projection_query_tables) {
   //    printf("error in create db, reason:%s\n", taos_errstr(pRes));
   //  }
   //  taos_free_result(pRes);
+  TAOS_RES* pRes1 = taos_query(pConn, "use abc1");
+  taos_free_result(pRes1);
 
-  TAOS_RES* pRes = taos_query(pConn, "alter local 'fqdn 127.0.0.1'");
+//  TAOS_RES* pRes = taos_query(pConn, "select sum(a) from t1");
+
+  // select test_udf('t1', 'root', name), test_udf('t1', 'root', card_id) from tx
+  TAOS_RES* pRes = taos_query(pConn, "select test_udf('tx', 'root', 'select name from tx')");
+
+//  TAOS_RES* pRes = taos_query(pConn, "select test_udf('t1', 'root', name) name from tx");
   if (taos_errno(pRes) != 0) {
     printf("failed to exec query, %s\n", taos_errstr(pRes));
   }
 
+  TAOS_ROW    pRow = NULL;
+  TAOS_FIELD* pFields = taos_fetch_fields(pRes);
+  int32_t     numOfFields = taos_num_fields(pRes);
+
+  char str[512] = {0};
+  while ((pRow = taos_fetch_row(pRes)) != NULL) {
+    int32_t code = taos_print_row(str, pRow, pFields, numOfFields);
+    printf("%s\n", str);
+  }
+
   taos_free_result(pRes);
+  return;
 
   pRes = taos_query(pConn, "select last(ts), ts from cache_1.t1");
 //  pRes = taos_query(pConn, "select last(ts), ts from cache_1.no_pk_t1");

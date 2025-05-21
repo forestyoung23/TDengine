@@ -424,7 +424,7 @@ TAOS_ROW taos_fetch_row(TAOS_RES *res) {
     }
 
     if (pResultInfo->current < pResultInfo->numOfRows) {
-      doSetOneRowPtr(pResultInfo);
+      doSetOneRowPtr(pResultInfo, INT32_MAX);
       pResultInfo->current += 1;
       return pResultInfo->row;
     } else {
@@ -433,7 +433,7 @@ TAOS_ROW taos_fetch_row(TAOS_RES *res) {
         return NULL;
       }
 
-      doSetOneRowPtr(pResultInfo);
+      doSetOneRowPtr(pResultInfo, INT32_MAX);
       pResultInfo->current += 1;
       return pResultInfo->row;
     }
@@ -913,6 +913,12 @@ static void doAsyncQueryFromAnalyse(SMetaData *pResultMeta, void *param, int32_t
   if (pRequest->parseOnly) {
     memcpy(&pRequest->parseMeta, pResultMeta, sizeof(*pResultMeta));
     memset(pResultMeta, 0, sizeof(*pResultMeta));
+  }
+
+  // set the mask info in resultRes
+  if (pWrapper->pParseCtx->valueMask) {
+    SReqResultInfo* pResInfo = &pWrapper->pRequest->body.resInfo;
+    pResInfo->valuemask = true;
   }
   
   handleQueryAnslyseRes(pWrapper, pResultMeta, code);

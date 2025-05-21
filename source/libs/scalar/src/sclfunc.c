@@ -727,6 +727,24 @@ int32_t md5Function(SScalarParam* pInput, int32_t inputNum, SScalarParam* pOutpu
   return TSDB_CODE_SUCCESS;
 }
 
+int32_t valueMaskFunction(SScalarParam* pInput, int32_t inputNum, SScalarParam* pOutput) {
+  SColumnInfoData *pInputData = pInput[2].columnData;
+  SColumnInfoData *pOutputData = pOutput->columnData;
+
+  for (int32_t i = 0; i < pInput[2].numOfRows; ++i) {
+    if (colDataIsNull_s(pInputData, i)) {
+      colDataSetNULL(pOutputData, i);
+      continue;
+    }
+
+    char *input = colDataGetData(pInputData, i);
+    colDataSetVal(pOutputData, i, input, false);
+  }
+
+  pOutput->numOfRows = pInput[2].numOfRows;
+  return TSDB_CODE_SUCCESS;
+}
+
 /** Conversion functions **/
 int32_t castFunction(SScalarParam *pInput, int32_t inputNum, SScalarParam *pOutput) {
   int16_t inputType = GET_PARAM_TYPE(&pInput[0]);

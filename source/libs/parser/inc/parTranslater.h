@@ -43,6 +43,9 @@ typedef struct STranslateContext {
   bool             createStream;
   bool             stableQuery;
   bool             showRewrite;
+  bool             valueMask;
+  SNode*           pTableName;
+  SNode*           pUser;
   SNode*           pPrevRoot;
   SNode*           pPostRoot;
 } STranslateContext;

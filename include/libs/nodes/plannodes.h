@@ -203,6 +203,14 @@ typedef struct SInterpFuncLogicNode {
   SNode*      pTimeSeries;  // SColumnNode
 } SInterpFuncLogicNode;
 
+typedef struct SValueMaskLogicNode {
+  SLogicNode node;
+  SNodeList* pFuncs;
+  SNodeList* pReadLevels;
+  int32_t    userReadLevel;
+  char       stmtName[TSDB_TABLE_NAME_LEN];
+} SValueMaskLogicNode;
+
 typedef struct SGroupCacheLogicNode {
   SLogicNode  node;
   bool        grpColsMayBeNull;  
@@ -505,6 +513,14 @@ typedef struct SInterpFuncPhysiNode {
   SNode*      pFillValues;  // SNodeListNode
   SNode*      pTimeSeries;  // SColumnNode
 } SInterpFuncPhysiNode;
+
+typedef struct SValueMaskFuncPhysiNode {
+  SPhysiNode node;
+  SNodeList* pFuncs;
+  SNodeList* pReadLevels;
+  int32_t    userReadLevel;
+  char       stmtName[TSDB_TABLE_NAME_LEN];
+} SValueMaskFuncPhysiNode;
 
 typedef struct SSortMergeJoinPhysiNode {
   SPhysiNode   node;

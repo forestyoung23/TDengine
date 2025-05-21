@@ -600,6 +600,8 @@ SNode* nodesMakeNode(ENodeType type) {
       return makeNode(type, sizeof(SIndefRowsFuncLogicNode));
     case QUERY_NODE_LOGIC_PLAN_INTERP_FUNC:
       return makeNode(type, sizeof(SInterpFuncLogicNode));
+    case QUERY_NODE_LOGIC_PLAN_VALUE_MASK_FUNC:
+      return makeNode(type, sizeof(SValueMaskLogicNode));
     case QUERY_NODE_LOGIC_PLAN_GROUP_CACHE:
       return makeNode(type, sizeof(SGroupCacheLogicNode));
     case QUERY_NODE_LOGIC_PLAN_DYN_QUERY_CTRL:
@@ -701,6 +703,8 @@ SNode* nodesMakeNode(ENodeType type) {
       return makeNode(type, sizeof(SSubplan));
     case QUERY_NODE_PHYSICAL_PLAN:
       return makeNode(type, sizeof(SQueryPlan));
+    case QUERY_NODE_PHYSICAL_PLAN_VALUE_MASK:
+      return makeNode(type, sizeof(SValueMaskFuncPhysiNode));
     default:
       break;
   }

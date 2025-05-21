@@ -6589,3 +6589,21 @@ int32_t cachedLastRowFunction(SqlFunctionCtx* pCtx) {
   SET_VAL(pResInfo, numOfElems, 1);
   return TSDB_CODE_SUCCESS;
 }
+
+typedef struct SValueMaskInfo {
+  int32_t numOfRows;
+} SValueMaskInfo;
+
+bool    valueMaskSetup(SqlFunctionCtx* pCtx, SResultRowEntryInfo* pResultInfo) {
+  if (!functionSetup(pCtx, pResultInfo)) {
+    return false;
+  }
+
+//  STableBlockDistInfo* pInfo = GET_ROWCELL_INTERBUF(GET_RES_INFO(pCtx));
+//  pInfo->minRows = INT32_MAX;
+  return true;
+}
+
+bool    valueMaskFuncEnv(SqlFunctionCtx* pCtx, SResultRowEntryInfo* pResultInfo) {
+  return true;
+}

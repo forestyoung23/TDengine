@@ -2357,6 +2357,21 @@ static int32_t translateBlockDistFunc(STranslateContext* pCtx, SFunctionNode* pF
   return TSDB_CODE_SUCCESS;
 }
 
+static int32_t translateValueMaskFunc(STranslateContext* pCtx, SFunctionNode* pFunc) {
+  if (!fmIsValueMaskFunc(pFunc->funcId)) {
+    return TSDB_CODE_SUCCESS;
+  }
+  if (!isSelectStmt(pCtx->pCurrStmt)) {
+    return generateSyntaxErrMsgExt(&pCtx->msgBuf, TSDB_CODE_PAR_ONLY_SUPPORT_SINGLE_TABLE,
+                                   "%s is only supported in single table query", pFunc->functionName);
+  }
+
+  SSelectStmt* pSelect = (SSelectStmt*)pCtx->pCurrStmt;
+  pSelect->valueMask = true;
+
+  return TSDB_CODE_SUCCESS;
+}
+
 static bool isStarParam(SNode* pNode) { return nodesIsStar(pNode) || nodesIsTableStar(pNode); }
 
 static int32_t translateMultiResFunc(STranslateContext* pCxt, SFunctionNode* pFunc) {
@@ -2667,6 +2682,9 @@ static int32_t translateNormalFunction(STranslateContext* pCxt, SNode** ppNode) 
     code = translateBlockDistFunc(pCxt, pFunc);
   }
   if (TSDB_CODE_SUCCESS == code) {
+    code = translateValueMaskFunc(pCxt, pFunc);
+  }
+  if (TSDB_CODE_SUCCESS == code) {
     setFuncClassification(pCxt->pCurrStmt, pFunc);
   }
   return code;
@@ -2726,6 +2744,16 @@ static int32_t translateFunctionImpl(STranslateContext* pCxt, SFunctionNode** pF
   if (fmIsClientPseudoColumnFunc((*pFunc)->funcId)) {
     return rewriteClientPseudoColumnFunc(pCxt, (SNode**)pFunc);
   }
+
+  if (fmIsValueMaskFunc((*pFunc)->funcId)) {
+    pCxt->valueMask = true;
+
+    if (pCxt->pTableName == NULL) {
+      pCxt->pTableName = nodesCloneNode((*pFunc)->pParameterList->pHead->pNode);
+      pCxt->pUser = nodesCloneNode((*pFunc)->pParameterList->pHead->pNext->pNode);
+    }
+  }
+
   return translateNormalFunction(pCxt, (SNode**)pFunc);
 }
 
@@ -13455,6 +13483,13 @@ int32_t translate(SParseContext* pParseCxt, SQuery* pQuery, SParseMetaCache* pMe
     code = setQuery(&cxt, pQuery);
   }
   setRefreshMeta(&cxt, pQuery);
+
+  pParseCxt->valueMask = cxt.valueMask;
+  if (pParseCxt->valueMask) {
+    pParseCxt->pTableName = taosStrdup(((SValueNode*)cxt.pTableName)->literal);
+    pParseCxt->pQueryUser = taosStrdup(((SValueNode*)cxt.pUser)->literal);
+  }
+
   destroyTranslateContext(&cxt);
   return code;
 }

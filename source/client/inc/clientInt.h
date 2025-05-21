@@ -184,7 +184,7 @@ typedef struct SReqResultInfo {
   SExecResult    execRes;
   const char*    pRspMsg;
   const char*    pData;
-  TAOS_FIELD*    fields;      // todo, column names are not needed.
+  TAOS_FIELD_EX* fields;      // todo, column names are not needed.
   TAOS_FIELD*    userFields;  // the fields info that return to user
   uint32_t       numOfCols;
   int32_t*       length;
@@ -200,6 +200,9 @@ typedef struct SReqResultInfo {
   bool           convertUcs4;
   int32_t        payloadLen;
   char*          convertJson;
+
+  ///// do value mask
+  bool           valuemask;
 } SReqResultInfo;
 
 typedef struct SRequestSendRecvBody {
@@ -295,10 +298,10 @@ typedef struct SSyncQueryParam {
 void* doAsyncFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4);
 void* doFetchRows(SRequestObj* pRequest, bool setupOneRowPtr, bool convertUcs4);
 
-void    doSetOneRowPtr(SReqResultInfo* pResultInfo);
+void    doSetOneRowPtr(SReqResultInfo* pResultInfo, int32_t readLevel);
 void    setResPrecision(SReqResultInfo* pResInfo, int32_t precision);
 int32_t setQueryResultFromRsp(SReqResultInfo* pResultInfo, const SRetrieveTableRsp* pRsp, bool convertUcs4);
-int32_t setResultDataPtr(SReqResultInfo* pResultInfo, TAOS_FIELD* pFields, int32_t numOfCols, int32_t numOfRows,
+int32_t setResultDataPtr(SReqResultInfo* pResultInfo, TAOS_FIELD_EX* pFields, int32_t numOfCols, int32_t numOfRows,
                          bool convertUcs4);
 void    setResSchemaInfo(SReqResultInfo* pResInfo, const SSchema* pSchema, int32_t numOfCols);
 void    doFreeReqResultInfo(SReqResultInfo* pResInfo);
