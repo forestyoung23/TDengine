@@ -2807,8 +2807,6 @@ int32_t rewriteSql(const char* pSql, char** pOutputSql) {
   }
 
   strcat(pRes, pRemain);
-  printf("%s\n", pRes);
-
   *pOutputSql = strdup(pRes);
   return 0;
 }
