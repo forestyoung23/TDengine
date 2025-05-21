@@ -1778,17 +1778,21 @@ SNode* setColumnOptions(SAstCreateContext* pCxt, SNode* pOptions, EColumnOptionT
       COPY_STRING_FORM_STR_TOKEN(buf, (SToken*)pVal);
       if (buf[0] != 0) {
         bool  isSuccess = false;
-        char* commaSplit = strstr(buf, ",");
+        if (buf[0] != '[') {
+          pCxt->errCode = TSDB_CODE_INVALID_OPTION;
+          goto _exit;
+        }
+        char* commaSplit = strstr(buf + 1, ",");
         if (commaSplit) {
-          int32_t lenSplit = commaSplit - buf;
+          int32_t lenSplit = commaSplit - buf - 1;
           for (int32_t i = 0; i < lenSplit; ++i) {
-            if (buf[i] < '0' || buf[i] > '9') {
+            if (buf[i + 1] < '0' || buf[i + 1] > '9') {
               break;
             }
             isSuccess = true;
           }
           if (isSuccess) {
-            int64_t readRange = taosStr2Int64(buf, NULL, 10);
+            int64_t readRange = taosStr2Int64(buf + 1, NULL, 10);
             if (readRange < 0 || readRange > INT32_MAX) {
               pCxt->errCode = TSDB_CODE_OUT_OF_RANGE;
               goto _exit;
@@ -1798,6 +1802,9 @@ SNode* setColumnOptions(SAstCreateContext* pCxt, SNode* pOptions, EColumnOptionT
             int32_t j = 0;
             while (commaSplit[j]) {
               if (commaSplit[j] < '0' || commaSplit[j] > '9') {
+                if (commaSplit[j] == ']' && commaSplit[j + 1] == 0) {
+                  break;
+                }
                 pCxt->errCode = TSDB_CODE_INVALID_OPTION;
                 goto _exit;
               }
