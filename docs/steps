@@ -1,0 +1,65 @@
+1. 脱敏展示
+1. 新建超级表 test5，创建 10 个子表 test5_0 ... test5_9，每个子表写入 100 条数据。
+2. 创建用户 user。
+3. 通过查看系统表，查看 user_red 和 table_red 的属性。
+[图片]
+4. select * from test5; 可以正常显示所有数据。
+3300security.sql
+1-4 步，通过 taos 以默认用户登录，命名为 taos shell 1，通过脚本执行： source /path/3300security.sql 执行。
+5. 通过 user 用户登录，命名为 taos shell 2， 执行：
+select test_udf('test5','user','select name,card_id,salary,phone_no,address from test5 limit 15');
+ 命中脱敏规则，显示 & 和 #。
+[图片]
+6. 在 taos shell 1 中，修改用户 user 的 read_level 为 1。
+taos> alter user `user` read_level 1;
+Query OK, 0 row(s) affected (0.008690s)
+7. 在 taos shell 2 中，执行：
+select test_udf('test5','user','select name,card_id,salary,phone_no,address from test5 limit 15');
+因为 read_level >= read_level(name) 并且 nResult=15 包含在 read_range(name) [10,100] 区间，所以，输出结果中， name 列非脱敏展示。 
+[图片]
+8. 在 taos shell 2 中，执行 
+select test_udf('test5','user','select name,card_id,salary,phone_no,address from test5 limit 5');
+因为返回结果数为 5，不在 read_range(name) [10,100] 区间，所以，name 列脱敏展示。
+[图片]
+9. 在 taos shell 1 中， 修改 name 列的 read_range，然后查询 read_range，结果从 [10,100] 更新为 [5,100] ： 
+taos> alter table test5 modify column name read_range "[5,100]";
+Query OK, 0 row(s) affected (0.017749s)
+[图片]
+10. 在 taos shell 2 中，重新执行上一次的查询 
+select test_udf('test5','user','select name,card_id,salary,phone_no,address from test5 limit 5');
+因为返回结果数为 5，落在修改后的 read_range(name) [5,100] 区间，所以，name 列非脱敏展示。
+[图片]
+2. 权限相关
+1. 继续使用步骤 1 中的 taos shell 2，执行修改 read 相关的属性，报权限不足。
+alter table test5 modify column name read_rule 0;
+alter table test5 modify column name read_range "[10,100]";
+alter user `user` read_level 0;
+[图片]
+3. 代码改动
+3.0 分支：
+TDinternal: feat/mask
+community: feat/mask
+功能
+模块
+
+语法解析
+parser 模块
+
+元数据管理
+mnode sdb/vnode meta
+
+元数据更新通知
+mnode/client hb
+
+权限管理
+privilege
+
+消息编解码
+msg
+
+自定义函数处理
+function
+
+脱敏逻辑
+display driver
+
