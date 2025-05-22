@@ -19,6 +19,7 @@
 int32_t mndInitView(SMnode *pMnode) {
   mndSetMsgHandle(pMnode, TDMT_MND_CREATE_VIEW, mndProcessCreateViewReq);
   mndSetMsgHandle(pMnode, TDMT_MND_DROP_VIEW, mndProcessDropViewReq);
+  mndSetMsgHandle(pMnode, TDMT_MND_REFRESH_VIEW, mndProcessRefreshViewReq);
   mndSetMsgHandle(pMnode, TDMT_MND_VIEW_META, mndProcessGetViewMetaReq);
 
   mndAddShowRetrieveHandle(pMnode, TSDB_MGMT_TABLE_VIEWS, mndRetrieveView);
@@ -76,6 +77,21 @@ int32_t mndProcessDropViewReq(SRpcMsg *pReq) {
     mInfo("start to drop view:%s, sql:%s", dropViewReq.name, dropViewReq.sql);
   
     return mndProcessDropViewReqImpl(&dropViewReq, pReq);
+#endif
+}
+
+int32_t mndProcessRefreshViewReq(SRpcMsg *pReq) {
+#ifndef TD_ENTERPRISE
+    return TSDB_CODE_OPS_NOT_SUPPORT;
+#else
+  SCMRefreshViewReq refreshViewReq = {0};
+  if (tDeserializeSCMRefreshViewReq(pReq->pCont, pReq->contLen, &refreshViewReq) != 0) {
+    terrno = TSDB_CODE_INVALID_MSG;
+    return -1;
+  }
+
+  mInfo("start to refresh view:%s, sql:%s", refreshViewReq.name, refreshViewReq.sql);
+  return mndProcessRefreshViewReqImpl(&refreshViewReq, pReq);
 #endif
 }
 
